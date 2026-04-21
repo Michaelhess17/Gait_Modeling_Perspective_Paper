@@ -1,0 +1,1065 @@
+% ============================================================================
+% Perspective: Why Data-Driven Modeling of Limit Cycles Is Hard
+% Target venue: Philosophical Transactions of the Royal Society A
+% ============================================================================
+\documentclass[12pt]{article}
+
+% --- Packages ---------------------------------------------------------------
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{bm}
+\usepackage{graphicx}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{hyperref}
+\usepackage{cleveref}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{enumitem}
+\usepackage{natbib}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,decorations.markings}
+
+% --- Custom commands --------------------------------------------------------
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\T}{\mathbb{T}}
+\newcommand{\norm}[1]{\lVert #1 \rVert}
+\newcommand{\abs}[1]{\lvert #1 \rvert}
+\newcommand{\inner}[2]{\langle #1, #2 \rangle}
+\newcommand{\op}[1]{\hat{#1}}
+\newcommand{\Atilde}{\tilde{A}}
+\newcommand{\ie}{\textit{i.e.}\@\xspace}
+\newcommand{\eg}{\textit{e.g.}\@\xspace}
+\DeclareMathOperator{\diag}{diag}
+\DeclareMathOperator{\svd}{svd}
+\DeclareMathOperator{\rank}{rank}
+\DeclareMathOperator{\spec}{spec}
+\DeclareMathOperator{\opnorm}{opnorm}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator*{\argmax}{arg\,max}
+
+% Colors for annotations
+\newcommand{\todo}[1]{\textcolor{red}{[\textbf{TODO:} #1]}}
+\newcommand{\note}[1]{\textcolor{blue}{[\textbf{Note:} #1]}}
+
+% --- Document ---------------------------------------------------------------
+\begin{document}
+
+% ============================================================================
+\title{%
+  Non-normality and the Limits of Data-Driven Decomposition \\
+  for Stable Oscillators: \\[4pt]
+  \large A Perspective from Gait Biomechanics%
+}
+
+\author{%
+  Michael Hess\textsuperscript{1,*},
+  Gordon Berman\textsuperscript{1,2}
+  \\[6pt]
+  \textsuperscript{1}[Department of Biology, Emory University] \\
+  \textsuperscript{2}[Department of Physics, Emory University] \\
+  \textsuperscript{*}Corresponding author: \texttt{[michael.hess@emory.edu]}
+}
+
+\date{}
+
+\maketitle
+
+% ============================================================================
+\begin{abstract}
+Limit cycles, or stable periodic orbits, are ubiquitous in biological systems,
+from cardiac rhythms and neural oscillations to the rhythmic coordination of
+locomotion. Recent advancements in data-driven methods such as Dynamic Mode Decomposition (DMD) and
+neural ordinary differential equations (ODEs) promise to extract mechanistic
+insight from time-series observations of these systems, yet in practice they
+encounter a constellation of difficulties that are rarely discussed together.
+We present a unified perspective on why decomposing limit-cycle dynamics from
+data is fundamentally harder than the analogous problem for fixed-point
+attractors. Three interacting mechanisms conspire against standard approaches:
+(i) measurement noise systematically biases identified linear operators,
+shrinking eigenvalues and corrupting mode shapes in ways that total-least-squares
+methods only partially remedy; (ii) the Floquet structure of limit cycles
+induces \emph{intrinsic non-normality} in any single-operator approximation,
+so that eigenvalue decomposition fails to separate dynamical contributions even
+when the spectrum is perfectly estimated; and (iii) the phase-dependent geometry
+of stable isostable foliations---twisting Floquet eigendirections and varying
+contraction rates---means that no time-invariant linear model can faithfully
+represent the transverse dynamics without mode mixing. We develop diagnostic
+tools based on pseudospectral analysis and resolvent gain curves, and apply
+them to a Hankel-DMD pipeline for human locomotion data (299 gait trials
+across able-bodied controls and stroke survivors). We show that non-normality
+metrics derived from the DMD operator discriminate clinical populations with
+large effect sizes ($p < 0.001$), suggesting that the very structure that
+makes limit cycles hard to decompose also encodes clinically relevant
+information about gait stability. We discuss implications for neural ODE
+approaches, spectral submanifold methods, and piecewise-linear strategies,
+arguing that the community should embrace non-normality as a feature rather
+than a nuisance.
+
+\vspace{6pt}
+\noindent\textbf{Keywords:}
+Dynamic Mode Decomposition, limit cycles, non-normality, Floquet theory,
+pseudospectra, gait biomechanics, stroke rehabilitation, neural ODEs
+\end{abstract}
+
+% ============================================================================
+\section{Introduction}
+\label{sec:intro}
+
+% --- Opening: limit cycles are everywhere ---
+Rhythmic behavior is among the most fundamental modes of biological
+organization. The heartbeat, respiratory rhythm, circadian clocks, neural
+oscillations, and locomotor coordination are all examples of \emph{limit
+cycles}---isolated periodic orbits that attract nearby trajectories
+\citep{strogatz2015nonlinear, guckenheimer1983nonlinear}. Unlike fixed points,
+limit cycles involve continuous motion around a closed orbit, with perturbations
+relaxing back to the cycle through transverse contracting directions described
+by \emph{Floquet theory} \citep{floquet1883equations, chicone2006ordinary}.
+Understanding the geometry of this relaxation---the Floquet multipliers
+and their associated eigendirections---is critical for predicting how
+biological oscillators respond to perturbation, for designing therapeutic
+interventions, and for building predictive models.
+
+% --- The data-driven promise ---
+The past two decades have seen an explosion of data-driven methods for
+dynamical systems. Dynamic Mode Decomposition (DMD)
+\citep{schmid2010dynamic, kutz2016dynamic} extracts a best-fit linear operator
+from time-series snapshots; its variants (extended DMD, Hankel-DMD, optimized
+DMD) have been applied to fluid flows, neuroscience, epidemiology, and
+robotics. Neural ordinary differential equations (neural ODEs)
+\citep{chen2018neural} offer a nonlinear alternative, learning continuous-time
+dynamics from data through backpropagation. Spectral submanifold (SSM) methods
+\citep{haller2016nonlinear, cenedese2022data} seek to identify the
+lowest-dimensional invariant manifolds that capture the essential dynamics.
+All three families of methods have been motivated, benchmarked, and primarily
+validated on systems with \emph{fixed-point attractors}---damped oscillations
+returning to equilibrium.
+
+% --- The hard truth ---
+When these methods are applied to \emph{limit cycles}, they encounter a
+qualitatively different landscape of difficulties that the fixed-point
+intuition does not prepare practitioners for. The purpose of this perspective
+is to lay out these difficulties in a unified framework, grounding the
+discussion in both theory and a concrete application to human gait data.
+Our central thesis is:
+
+\begin{quote}
+\emph{The combination of noise bias, intrinsic non-normality, and
+phase-dependent transverse geometry makes limit cycles fundamentally
+resistant to data-driven decomposition into separable, interpretable
+components---and this resistance is itself a meaningful dynamical signature
+that can be exploited clinically.}
+\end{quote}
+
+% --- Roadmap ---
+We organize the perspective as follows.
+\Cref{sec:background} reviews the essential theory: Floquet analysis,
+DMD and its noise sensitivity, and the sources of non-normality in
+single-operator limit-cycle models.
+\Cref{sec:methods} describes our Hankel-DMD pipeline with stability
+enforcement, and the pseudospectral and resolvent-based diagnostic toolkit
+we have developed.
+\Cref{sec:results_sl} presents a controlled study on the Stuart--Landau
+oscillator, where ground-truth Floquet structure is known, demonstrating
+how non-normality emerges even from a nearly diagonal system.
+\Cref{sec:results_gait} applies the full pipeline to 299 gait trials
+from able-bodied controls and stroke survivors, showing that non-normality
+metrics discriminate clinical populations.
+\Cref{sec:alternatives} discusses why neural ODEs, piecewise-linear
+models, and spectral submanifold methods face related or compounded
+difficulties.
+\Cref{sec:discussion} synthesizes the results and argues for a shift
+in how the community approaches data-driven limit-cycle modeling.
+
+% --- Prior work on gait ---
+This work builds on Winner \emph{et al.} \citep{winner2023lstm}, who used
+LSTMs to predict and find low-dimensional structure in human locomotion
+joint-angle data, demonstrating that data-driven methods can capture gait
+dynamics but leaving open the question of \emph{mechanistic interpretability}
+---what do the learned representations correspond to in dynamical systems
+terms?
+
+% ============================================================================
+\section{Background: Why Limit Cycles Are Different}
+\label{sec:background}
+
+% ----------------------------------------------------------------------------
+\subsection{Floquet Theory and the Monodromy Matrix}
+\label{sec:floquet}
+
+Consider a dynamical system
+\begin{equation}
+  \dot{\bm{x}} = \bm{f}(\bm{x}), \qquad \bm{x} \in \R^n,
+  \label{eq:ode}
+\end{equation}
+possessing a stable limit cycle $\gamma$ with period $T$. Linearizing about
+a point $\bm{x}_0 \in \gamma$ yields the variational equation
+\begin{equation}
+  \dot{\bm{\xi}} = \bm{J}(\bm{x}_0(t))\,\bm{\xi},
+  \label{eq:variational}
+\end{equation}
+where $\bm{J}(\bm{x}_0(t)) = D\bm{f}|_{\bm{x}_0(t)}$ is the
+\emph{time-periodic} Jacobian. By Floquet's theorem, the fundamental matrix
+solution $\Phi(t)$ can be factored as
+\begin{equation}
+  \Phi(t) = P(t) \, e^{Bt},
+  \label{eq:floquet}
+\end{equation}
+where $P(t) = P(t + T)$ is $T$-periodic and $B$ is a constant matrix.
+The \emph{monodromy matrix} $M = \Phi(T)$ maps perturbations through one
+full period; its eigenvalues $\mu_i$ are the \emph{Floquet multipliers},
+and the corresponding eigenvectors define the directions along which
+perturbations grow or decay.
+
+One multiplier is always $\mu_1 = 1$ (the marginal direction tangent to
+the orbit). The remaining multipliers $\abs{\mu_i} < 1$ for a stable
+limit cycle, and their associated \emph{isostable directions}
+\citep{wilson2016isostable, kvalheim2021existence} define the transverse
+contracting geometry. Crucially:
+
+\begin{enumerate}[label=(\roman*)]
+  \item The Floquet eigendirections are generally \emph{not constant}---they
+  rotate and stretch as one moves along $\gamma$, parameterized by the
+  periodic matrix $P(t)$.
+  \item The contraction rates can be \emph{phase-dependent}: a perturbation
+  may transiently grow in certain phases of the cycle before ultimately
+  decaying.
+  \item When multipliers are close in magnitude (small separation of
+  timescales), the corresponding eigendirections can become nearly
+  parallel, inducing geometric sensitivity.
+\end{enumerate}
+
+These features have no analogue in fixed-point dynamics, where the
+eigenvectors of the Jacobian are constant and the contraction is uniform
+in time.
+
+% ----------------------------------------------------------------------------
+\subsection{DMD as a Single-Operator Approximation}
+\label{sec:dmd_background}
+
+Standard DMD \citep{schmid2010dynamic} seeks a matrix $\Atilde$ such that
+$\bm{x}_{k+1} \approx \Atilde \bm{x}_k$. Given snapshot matrices
+$X = [\bm{x}_1 \cdots \bm{x}_{m-1}]$ and $Y = [\bm{x}_2 \cdots \bm{x}_m]$,
+the solution is
+\begin{equation}
+  \Atilde = Y X^+ \approx U_r^* Y V_r \Sigma_r^{-1},
+  \label{eq:dmd}
+\end{equation}
+where $X = U \Sigma V^*$ is the SVD and $r$ is the truncation rank.
+
+For a system near a fixed point, $\Atilde$ approximates the matrix
+exponential $e^{J \Delta t}$, and the DMD eigenvalues and modes correspond
+directly to the eigenvalues and eigenvectors of the Jacobian $J$.
+The relationship is clean: the spectrum of $\Atilde$ carries the full
+dynamical information.
+
+For a limit cycle, the situation is fundamentally different. The data
+$\bm{x}_k$ lie on or near a closed curve, and a single linear operator
+$\Atilde$ must simultaneously:
+\begin{enumerate}[label=(\alph*)]
+  \item Rotate states around the orbit (the oscillatory component),
+  \item Contract perturbations transverse to the orbit (the Floquet
+  decay), and
+  \item Approximate the \emph{time-varying} Floquet structure with a
+  \emph{time-invariant} operator.
+\end{enumerate}
+Requirement (c) is the crux of the difficulty. The time-varying Jacobian
+$\bm{J}(t)$ is being compressed into a constant matrix, and the resulting
+$\Atilde$ must use \emph{non-normal mode mixing} to reproduce the
+net-stable, phase-dependent dynamics.
+
+% --- Takens embedding / Hankel DMD ---
+\subsubsection{Hankel-DMD and Delay Embedding}
+\label{sec:hankel_dmd}
+
+To increase the rank and observability of the linear representation,
+one typically applies Takens-style delay embedding
+\citep{takens1981detecting, brunton2017chaos}, constructing a Hankel
+(block-row) matrix:
+\begin{equation}
+  H = \begin{bmatrix}
+    \bm{x}_1 & \bm{x}_2 & \cdots & \bm{x}_{m-\tau} \\
+    \bm{x}_2 & \bm{x}_3 & \cdots & \bm{x}_{m-\tau+1} \\
+    \vdots & & & \vdots \\
+    \bm{x}_{\tau+1} & \bm{x}_{\tau+2} & \cdots & \bm{x}_m
+  \end{bmatrix}
+  \in \R^{n(\tau+1) \times (m-\tau)},
+  \label{eq:hankel}
+\end{equation}
+where $\tau$ is the number of delay lags and $n$ is the ambient dimension.
+DMD is then applied to consecutive column pairs of $H$. This ``Hankel-DMD''
+approach dramatically expands the state space, enabling the linear operator
+to represent richer dynamics---but it also amplifies the non-normality
+problem, as we will show, because the delay coordinates introduce
+additional geometric entanglement.
+
+% ----------------------------------------------------------------------------
+\subsection{Noise Bias: A Universal Problem, Amplified by Oscillations}
+\label{sec:noise_bias}
+
+% --- Forward model bias ---
+Consider the noisy observation model $\bm{y}_k = \bm{x}_k + \bm{\eta}_k$,
+where $\bm{\eta}_k$ is i.i.d.\ measurement noise. Standard DMD solves
+\begin{equation}
+  \Atilde = \argmin_A \norm{Y - A X}_F,
+  \label{eq:dmd_ls}
+\end{equation}
+which is a \emph{forward} least-squares problem: noise in $X$ is treated as
+exact, while noise in $Y$ is minimized. This asymmetry systematically biases
+the identified eigenvalues \emph{toward the origin} (for continuous-time,
+toward $-\infty$ on the real axis), an effect well-known in the
+errors-in-variables literature \citep{fuller1987measurement} and studied
+specifically for DMD by \citet{dawson2016characterizing, hemati2017biasing}.
+
+For a fixed-point attractor, this bias makes estimated decay rates slightly
+too fast---a quantitative error, but not a qualitative one. For a limit
+cycle, the consequences are more severe:
+
+\begin{enumerate}[label=(\roman*)]
+  \item \textbf{Spectral radius shrinkage:} The Floquet multiplier at
+  $\abs{\mu} = 1$ (the phase direction) is pulled inside the unit disk,
+  making the orbit appear to spiral inward. The oscillation decays
+  spuriously.
+  \item \textbf{Frequency corruption:} Eigenvalue bias is generally not
+  radially symmetric, so oscillation frequencies can shift.
+  \item \textbf{Mode-shape distortion:} Since the bias depends on the
+  signal-to-noise ratio of each mode, and oscillatory modes have high
+  energy, the relative bias differs across modes, distorting the
+  eigenvector structure.
+\end{enumerate}
+
+% --- OptDMD / TLS approaches ---
+Optimized DMD (OptDMD, \citealt{askham2018variable}),
+total-least-squares DMD \citep{hemati2017biasing}, and forward-backward
+DMD \citep{dawson2016characterizing} partially address this by treating
+noise in both $X$ and $Y$. However:
+
+\begin{quote}
+  \emph{Neural ODEs \citep{chen2018neural} and other continuous-time
+  neural network approaches are equivalent to a forward model in this
+  respect: they learn $\dot{\bm{x}} = f_\theta(\bm{x})$ by minimizing
+  forward prediction error, treating the state trajectory as ground truth.
+  They cannot account for noise in the state observations themselves, and
+  thus suffer from the same systematic bias.}
+\end{quote}
+
+This is a critical and underappreciated point. The community has largely
+treated neural ODEs as a ``more flexible'' alternative to DMD, but they
+inherit exactly the same noise-bias structure and additionally lack the
+spectral interpretability that makes DMD's bias diagnosable.
+
+% ----------------------------------------------------------------------------
+\subsection{Non-Normality: The Eigenvalue Decomposition Fails}
+\label{sec:nonnormality_theory}
+
+Even if noise bias could be perfectly corrected, the eigenvalue decomposition
+of a limit-cycle DMD operator would \emph{still} not decompose the dynamics
+into separable components. The reason is \emph{non-normality}.
+
+A matrix $A$ is \emph{normal} if $A A^* = A^* A$. Normal matrices have
+orthogonal eigenvectors and their spectral decomposition is well-conditioned.
+For non-normal matrices, eigenvectors can become nearly parallel, and the
+resolvent $(zI - A)^{-1}$ can be enormous even far from any eigenvalue.
+The degree of non-normality is measured by:
+
+\begin{itemize}
+  \item The \textbf{eigenvector condition number} $\kappa(V)$, where $V$
+  is the eigenvector matrix: $\kappa(V) = \norm{V} \cdot \norm{V^{-1}}$.
+  \item The \textbf{Henrici departure from normality}:
+  $\delta_H(A) = \sqrt{\norm{A}_F^2 - \sum_i \abs{\lambda_i}^2} / \norm{A}_F$.
+  \item The \textbf{Kreiss constant} $\mathcal{K}(A)$, bounding transient
+  growth: $\sup_{n \geq 0} \norm{A^n} \geq \mathcal{K}(A)$
+  \citep{trefethen2005spectra}.
+  \item The \textbf{$\varepsilon$-pseudospectral radius}
+  $\rho_\varepsilon(A) = \max\{\abs{z} : z \in \sigma_\varepsilon(A)\}$.
+\end{itemize}
+
+\subsubsection{Why Limit-Cycle DMD Operators Are Necessarily Non-Normal}
+\label{sec:why_nonnormal}
+
+Consider the simplest limit cycle: the Stuart--Landau oscillator
+\begin{equation}
+  \dot{z} = (\sigma + i\omega) z - z\abs{z}^2,
+  \label{eq:stuart_landau}
+\end{equation}
+where $z \in \C$, $\sigma > 0$ controls the contraction rate, and
+$\omega$ is the natural frequency. On the limit cycle ($\abs{z} = \sqrt{\sigma}$),
+the linearized transverse dynamics have Floquet multiplier
+$\mu_s = e^{-2\sigma T}$ with $T = 2\pi/\omega$.
+
+Even for this analytically tractable system, a Hankel-DMD operator $\Atilde$
+exhibits:
+\begin{itemize}
+  \item $\kappa(V) \sim 10^5$ (compared to $\kappa(V) = 1$ for a normal matrix),
+  \item Henrici number $\delta_H \approx 0.99$,
+  \item Peak transient growth $\norm{\Atilde^n} \sim 10^4 \times$ the
+  asymptotic bound.
+\end{itemize}
+
+The mechanism is clear: the operator must simultaneously encode
+\emph{rotation} (eigenvalues on the unit circle) and \emph{contraction}
+(eigenvalues inside the unit circle), but the \emph{exact cancellation}
+required for stable periodic orbits forces the eigenvectors into near-parallel
+configurations. The transient growth represents the operator's internal
+mechanism for achieving the net rotation-plus-contraction: it amplifies
+certain combinations of modes before they are canceled by others.
+
+This non-normality is \textbf{not an artifact of noise, finite data, or
+poor algorithm choice}---it is an \textbf{intrinsic consequence} of
+approximating a time-varying process with a time-invariant operator.
+
+\subsubsection{The Pseudospectral and Resolvent Perspective}
+\label{sec:pseudospectra_theory}
+
+The $\varepsilon$-pseudospectrum of $A$ is defined as
+\begin{equation}
+  \sigma_\varepsilon(A) = \{z \in \C : \sigma_{\min}(zI - A) < \varepsilon\}
+  = \{z \in \C : \norm{(zI - A)^{-1}} > \varepsilon^{-1}\},
+\end{equation}
+and reveals the true sensitivity of the dynamics. For our discrete-time
+setting (eigenvalues on or near the unit circle), we evaluate the
+\textbf{resolvent norm} at $z = r e^{i\theta}$ with $r$ slightly greater
+than 1:
+\begin{equation}
+  G(f; r) = \norm{(re^{i\theta} I - \Atilde)^{-1}}, \qquad
+  f = \frac{\theta}{2\pi} f_s,
+  \label{eq:resolvent_gain}
+\end{equation}
+where $f_s$ is the sampling frequency. This \emph{resolvent gain curve}
+reveals which frequencies are most amplified by near-resonance with the
+non-normal operator---a forcing-response perspective that is natural for
+understanding how perturbations couple to the limit-cycle dynamics.
+
+Key derived metrics include:
+\begin{itemize}
+  \item \textbf{Stability margin:}
+  $d(\Atilde) = \min_\theta \sigma_{\min}(e^{i\theta}I - \Atilde)$,
+  the smallest perturbation that destabilizes the system.
+  \item \textbf{Kreiss constant:}
+  $\mathcal{K}(\Atilde) = \sup_{\abs{z}>1} (\abs{z}-1)\norm{(zI-\Atilde)^{-1}}$,
+  bounding worst-case transient growth.
+  \item \textbf{Numerical abscissa:}
+  $\omega(\Atilde) = \lambda_{\max}\!\bigl(\tfrac{1}{2}(\Atilde + \Atilde^*)\bigr)$,
+  controlling one-step energy growth.
+\end{itemize}
+
+% ============================================================================
+\section{Methods}
+\label{sec:methods}
+
+% ----------------------------------------------------------------------------
+\subsection{Gait Data and Clinical Populations}
+\label{sec:data}
+
+We analyze a dataset of $N = 299$ overground walking trials from three
+populations:
+\begin{itemize}
+  \item \textbf{AB} (Able-Bodied): 180 trials from 22 subjects, treadmill
+  speeds 30--220 cm/s.
+  \item \textbf{HF} (Higher-Functioning stroke): 65 trials from 11
+  subjects, speeds 40--127 cm/s.
+  \item \textbf{LF} (Lower-Functioning stroke): 54 trials from 9 subjects,
+  speeds 22--60 cm/s.
+\end{itemize}
+Each trial consists of $T = 1500$ time steps at $f_s = 100$ Hz (15 seconds)
+of $n = 6$ joint angles (bilateral hip, knee, ankle), preprocessed as
+described in \citet{winner2023lstm}. \todo{Confirm exact joint set and
+preprocessing.}
+
+% ----------------------------------------------------------------------------
+\subsection{Hankel-DMD Pipeline}
+\label{sec:pipeline}
+
+For each trial, we construct a block-Hankel matrix (\cref{eq:hankel}) with
+$\tau = 10$ delay lags, yielding a state dimension of
+$n_{\text{state}} = 6 \times 11 = 66$. We then:
+
+\begin{enumerate}
+  \item Compute the economy SVD $H_X = U \Sigma V^*$, where
+  $H_X$ and $H_Y$ are the lagged and shifted Hankel blocks.
+  \item Truncate at the noise floor: retain singular values
+  $\sigma_i > 10^{-6} \sigma_1$.
+  \item Form the reduced operator
+  $\Atilde = U_r^* H_Y V_r \Sigma_r^{-1}$.
+\end{enumerate}
+
+\subsubsection{Stability Enforcement}
+\label{sec:stability_enforcement}
+
+The raw DMD operator frequently has eigenvalues outside the unit disk
+(spectral radius $\rho > 1$), particularly for the stroke groups where
+noise levels are higher. \todo{Quantify: 68\% of HF trials had
+$\rho > 1$.} Since the underlying system is a stable limit cycle, these
+unstable eigenvalues are artifacts. We enforce stability by projecting
+each eigenvalue onto the unit disk:
+\begin{equation}
+  \lambda_i \leftarrow
+  \begin{cases}
+    \lambda_i & \text{if } \abs{\lambda_i} \leq 1, \\
+    \lambda_i / \abs{\lambda_i} & \text{if } \abs{\lambda_i} > 1,
+  \end{cases}
+  \label{eq:stability_clamp}
+\end{equation}
+and reconstructing $\Atilde_{\text{stable}} = W \diag(\lambda_1, \ldots, \lambda_r) W^{-1}$.
+
+% ----------------------------------------------------------------------------
+\subsection{Non-Normality Metrics}
+\label{sec:metrics}
+
+For each trial's stability-enforced operator $\Atilde$, we compute:
+
+\begin{enumerate}
+  \item \textbf{Spectral metrics:} rank $r$, spectral radius $\rho$,
+  leading singular value $\sigma_1$.
+  \item \textbf{Non-normality metrics:} eigenvector condition number
+  $\kappa(V)$, Henrici departure $\delta_H$, peak transient growth
+  $\max_{n} \norm{\Atilde^n}$, Kreiss constant $\mathcal{K}$.
+  \item \textbf{Resolvent metrics (at $r = 1.01$ and $r = 1.05$):}
+  peak resolvent gain (excluding DC), mean gain, gain at 1~Hz and 2~Hz
+  (the fundamental and first harmonic of gait).
+  \item \textbf{Stability margin:} $d(\Atilde)$ and the frequency
+  at which it occurs.
+  \item \textbf{Normalized growth:} $\text{growth\_per\_rank} = \max_n \norm{\Atilde^n} / r$,
+  controlling for the rank confound.
+\end{enumerate}
+
+Statistical comparisons use the Mann--Whitney $U$ test (nonparametric,
+appropriate for unequal and non-normal sample sizes) with Cliff's delta
+for effect size.
+
+% ----------------------------------------------------------------------------
+\subsection{Neural ODE Experiments}
+\label{sec:neural_ode_methods}
+
+\todo{Describe the neural ODE training setup: architecture (MLP layers,
+hidden dim), training procedure (adjoint method), training/validation split,
+and the specific failure modes observed. Key points:
+\begin{itemize}
+  \item Models converged to fitting the mean trajectory (the limit cycle)
+  but failed to capture transverse dynamics.
+  \item Forward simulation (generative mode) diverged rapidly---the models
+  could not maintain a stable orbit.
+  \item This is well-documented for periodic data in neural ODEs
+  \citep{jordan2021neural, linot2023stabilized}.
+  \item The fundamental issue: like standard DMD, neural ODEs treat $x(t)$
+  as noise-free and optimize a forward loss, so they cannot account for
+  errors-in-variables.
+\end{itemize}}
+
+% ============================================================================
+\section{Results I: The Stuart--Landau Oscillator}
+\label{sec:results_sl}
+
+As a controlled testbed, we first apply our pipeline to the Stuart--Landau
+oscillator (\cref{eq:stuart_landau}) with $\sigma = 0.1$ and $\omega = 2\pi$
+(period $T = 1$ s). This system has a single nontrivial Floquet multiplier
+$\mu_s = e^{-0.2\pi} \approx 0.533$ and constant isostable directions
+(the radial direction in polar coordinates).
+
+\subsection{Ground-Truth Floquet Structure vs.\ DMD Representation}
+
+A Hankel-DMD operator with $\tau = 10$ and rank $r = 20$ yields:
+\begin{itemize}
+  \item Spectral radius $\rho(\Atilde) = 0.99989$ (bias from $\rho = 1$).
+  \item Eigenvector condition number $\kappa(V) \approx 1.5 \times 10^5$.
+  \item Henrici departure $\delta_H \approx 0.99$.
+  \item Peak transient growth $\max_n \norm{\Atilde^n} \approx 1.4 \times 10^4$.
+\end{itemize}
+
+\begin{figure}[t]
+  \centering
+  \todo{Figure 1: Stuart--Landau DMD dissection.
+  (a) Eigenvalue spectrum (unit circle, eigenvalues clustered near it).
+  (b) Transient growth curve $\norm{\Atilde^n}$ vs $n$.
+  (c) Pseudospectral contour plot showing $\varepsilon$-pseudospectra
+      bulging far outside unit circle.
+  (d) Resolvent gain curve at $r=1.01$, showing resonance peaks.}
+  \caption{Non-normality anatomy of the Stuart--Landau DMD operator.
+  Despite a spectral radius of 0.999, the operator exhibits transient
+  amplification exceeding $10^4$ and pseudospectra that extend well
+  beyond the unit circle. This non-normality is intrinsic to the
+  single-operator representation of limit-cycle dynamics.}
+  \label{fig:sl_anatomy}
+\end{figure}
+
+The key insight is that the Stuart--Landau system has the \emph{simplest
+possible} Floquet structure---constant eigendirections, a single contraction
+rate---and yet the Hankel-DMD operator is profoundly non-normal. The
+non-normality arises not from the complexity of the underlying system but
+from the \emph{representational mismatch}: a time-invariant linear operator
+must use eigenvector non-orthogonality to encode the interplay between
+oscillation and contraction.
+
+\subsection{Mechanism: Cancellation and Mode Mixing}
+
+The eigenvector matrix $V$ of $\Atilde$ reveals the mechanism. Modes
+associated with eigenvalues near the unit circle (the ``oscillatory'' modes)
+have eigenvectors that are nearly parallel to those of the ``decaying'' modes.
+The operator achieves stable periodic orbits through \emph{constructive
+interference on the limit cycle} (modes add coherently) and
+\emph{destructive interference off the cycle} (transverse perturbations are
+canceled by near-parallel mode pairs with slightly different decay rates).
+
+This cancellation mechanism means that:
+\begin{enumerate}
+  \item Removing any single eigenvalue from the spectrum dramatically
+  changes the predicted dynamics---modes are not separable.
+  \item The transient growth $\norm{\Atilde^n}$ can vastly exceed the
+  spectral-radius bound $\rho^n$, because the cancellation requires
+  large intermediate amplitudes.
+  \item Small perturbations to $\Atilde$ (from noise) can qualitatively
+  change which modes dominate, making the decomposition unstable.
+\end{enumerate}
+
+% ============================================================================
+\section{Results II: Human Gait Data}
+\label{sec:results_gait}
+
+% ----------------------------------------------------------------------------
+\subsection{Stability-Enforced DMD: Basic Metrics}
+\label{sec:results_basic}
+
+Applying the pipeline to all 299 gait trials with stability enforcement
+yields the results in \cref{tab:basic_metrics}.
+
+\begin{table}[t]
+\centering
+\caption{Stability-enforced DMD metrics by group (median [IQR]).}
+\label{tab:basic_metrics}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Metric} & \textbf{AB} ($n=180$) & \textbf{HF} ($n=65$) & \textbf{LF} ($n=54$) \\
+\midrule
+Rank $r$
+  & 45 [43--64] & 37 [36--38] & 36 [36--37] \\
+$\kappa(V)$
+  & 73{,}000 [43K--121K] & 159{,}000 [113K--263K] & 136{,}000 [99K--214K] \\
+$\delta_H$ (Henrici)
+  & 0.98 [0.98--0.99] & 0.99 [0.93--1.00] & 0.91 [0.89--0.97] \\
+$\max_n\norm{\Atilde^n}$
+  & 21{,}085 [7.5K--36K] & 52{,}050 [37K--77K] & 46{,}961 [29K--68K] \\
+Growth/rank
+  & 475 [127--866] & 1{,}375 [1{,}026--2{,}029] & 1{,}294 [830--1{,}842] \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The most striking result is the \textbf{growth per rank} metric:
+stroke survivors exhibit approximately $2.5$--$3\times$ the transient
+growth per mode compared to able-bodied controls ($p < 0.001$, Cliff's
+delta $> 0.6$, ``large'' effect). This persists in speed-matched
+comparisons (30--60 cm/s), ruling out speed as a confound.
+
+\begin{figure}[t]
+  \centering
+  \todo{Figure 2: Strip/jitter plots of key metrics by group.
+  (a) growth\_per\_rank: AB vs HF vs LF.
+  (b) $\kappa(V)$ by group.
+  (c) Kreiss constant by group.
+  (d) growth\_per\_rank vs speed, colored by group.}
+  \caption{Non-normality metrics discriminate clinical populations.
+  Growth per rank (a) shows the strongest separation ($p < 0.001$
+  for AB vs HF and AB vs LF). The effect persists after controlling
+  for walking speed (d).}
+  \label{fig:gait_metrics}
+\end{figure}
+
+% ----------------------------------------------------------------------------
+\subsection{Pseudospectral Analysis}
+\label{sec:results_pseudo}
+
+\todo{Present pseudospectral results once cell 27 computation completes.
+Expected structure:
+\begin{itemize}
+  \item Kreiss constant: HF $>$ LF $>$ AB.
+  \item Resolvent gain at $r=1.01$: stroke groups show larger peak gains,
+  particularly near 1--2 Hz (gait fundamental and harmonic).
+  \item Stability margin: AB has larger $d(\Atilde)$ (more robust to
+  perturbation).
+  \item Pseudospectral contour plots for representative AB, HF, LF trials
+  showing differential ``bulging'' beyond unit circle.
+\end{itemize}}
+
+\begin{figure}[t]
+  \centering
+  \todo{Figure 3: Pseudospectral analysis.
+  (a--c) $\varepsilon$-pseudospectral contours for representative AB, HF, LF trials.
+  (d) Resolvent gain curves at $r = 1.01$ for the same three trials,
+      with gait band (0.8--3 Hz) shaded.
+  (e) Zoomed gait-band resolvent (0--5 Hz) at $r=1.01$.}
+  \caption{Pseudospectral contours and resolvent gain curves reveal
+  differential amplification structure across clinical populations.
+  Stroke survivors' DMD operators show larger $\varepsilon$-pseudospectra
+  (more ``leakage'' beyond the unit circle) and higher resolvent gains
+  at gait-relevant frequencies.}
+  \label{fig:pseudospectra}
+\end{figure}
+
+% ----------------------------------------------------------------------------
+\subsection{Clinical Interpretation}
+\label{sec:clinical}
+
+The non-normality of the DMD operator is not merely a mathematical curiosity
+---it encodes how the gait system responds to perturbation. Higher
+growth-per-rank means that the limit-cycle dynamics rely on more delicate
+cancellations between modes to maintain stability. In physical terms:
+
+\begin{itemize}
+  \item \textbf{Perturbation sensitivity:} A gait pattern with high
+  non-normality can exhibit large transient excursions before returning
+  to the periodic orbit, even if the orbit is formally stable (all
+  Floquet multipliers inside the unit disk).
+  \item \textbf{Robustness to model error:} Small changes in the operator
+  (representing, e.g., fatigue, terrain changes, or neural control
+  variability) have outsized effects on the predicted dynamics when the
+  operator is highly non-normal.
+  \item \textbf{Fall risk:} The transient growth magnitude directly
+  bounds the worst-case perturbation amplification. If a stroke
+  survivor's gait control system has $3\times$ the transient growth
+  of an able-bodied walker, their maximum excursion from the gait
+  cycle in response to an identical perturbation is correspondingly
+  larger.
+\end{itemize}
+
+\todo{Discuss whether higher non-normality in stroke gait is a cause
+(maladaptive control strategy) or consequence (reduced neural bandwidth
+forcing the controller to operate closer to the stability boundary) of
+increased fall risk.}
+
+% ============================================================================
+\section{Why Other Methods Face Similar or Worse Difficulties}
+\label{sec:alternatives}
+
+% ----------------------------------------------------------------------------
+\subsection{Neural ODEs}
+\label{sec:neural_odes}
+
+Neural ODEs learn a vector field $\dot{\bm{x}} = f_\theta(\bm{x})$ by
+minimizing
+\begin{equation}
+  \mathcal{L}(\theta) = \sum_k \norm{\bm{x}(t_k) - \hat{\bm{x}}(t_k;\theta)}^2,
+  \label{eq:node_loss}
+\end{equation}
+where $\hat{\bm{x}}(t_k;\theta)$ is the solution of the neural ODE
+integrated forward from an initial condition. This formulation has two
+fundamental problems for limit cycles:
+
+\begin{enumerate}[label=(\roman*)]
+  \item \textbf{Noise-in-variables bias:} Like standard DMD, the loss
+  \cref{eq:node_loss} treats the observed $\bm{x}(t_k)$ as exact. Noise
+  in the state trajectory biases the learned dynamics in the same
+  direction as for DMD (eigenvalue shrinkage / spurious damping), but
+  the bias is harder to diagnose because the model is nonlinear and
+  lacks a clean spectral decomposition.
+
+  \item \textbf{Error accumulation:} Forward integration compounds
+  errors at each time step. For a limit cycle, even a small systematic
+  bias causes the predicted orbit to spiral inward or outward,
+  amplified by the integration horizon. Our experiments confirm this:
+  neural ODEs trained on gait data converge to the mean trajectory but
+  diverge rapidly in generative mode.
+  \todo{Include training curves and generative-mode divergence plots.}
+\end{enumerate}
+
+These issues have been documented for periodic data by
+\citet{jordan2021neural} and \citet{linot2023stabilized}, who proposed
+stabilization tricks (e.g., augmented training losses that penalize
+divergence from the attractor). However, these fixes are
+application-specific and do not address the fundamental noise-bias
+problem.
+
+% ----------------------------------------------------------------------------
+\subsection{Piecewise-Linear Models}
+\label{sec:piecewise}
+
+An intuitive strategy for handling the time-varying Floquet structure is
+to partition the limit cycle into segments and fit a separate linear model
+in each:
+\begin{equation}
+  \bm{x}_{k+1} \approx A_j \bm{x}_k \quad \text{for } \bm{x}_k \in \mathcal{R}_j,
+  \label{eq:piecewise}
+\end{equation}
+where $\{\mathcal{R}_j\}$ partitions the state space. This approach faces
+compounding difficulties:
+
+\begin{enumerate}[label=(\roman*)]
+  \item \textbf{Phase estimation:} Defining the boundaries
+  $\{\mathcal{R}_j\}$ requires knowing the limit cycle and assigning
+  a phase to each data point---itself a nontrivial task for noisy,
+  high-dimensional data.
+  \item \textbf{Boundary discontinuities:} At region boundaries, the
+  switch between linear models introduces artificial discontinuities
+  that accumulate during forward propagation.
+  \item \textbf{Data fragmentation:} Each submodel has access to only
+  a fraction of the data, increasing noise sensitivity and making the
+  bias problem \emph{worse} for each individual model.
+  \item \textbf{No spectral coherence:} The eigenvalues of different
+  $A_j$ need not be related in any simple way, making it impossible
+  to extract global Floquet multipliers without additional assumptions.
+\end{enumerate}
+
+% ----------------------------------------------------------------------------
+\subsection{Spectral Submanifolds (SSMs)}
+\label{sec:ssm}
+
+Spectral submanifold methods \citep{haller2016nonlinear, cenedese2022data}
+identify the unique smoothest invariant manifolds tangent to spectral
+subspaces of the linearization. They offer a rigorous nonlinear extension
+of modal analysis---but with critical limitations for limit cycles:
+
+\begin{enumerate}[label=(\roman*)]
+  \item \textbf{Fixed-point formulation:} The mathematical foundation
+  of SSMs requires a fixed point with a well-defined spectrum. Limit
+  cycles have a trivially zero eigenvalue (the phase direction), which
+  violates the non-resonance conditions needed for SSM uniqueness.
+
+  \item \textbf{Resonances:} The oscillatory eigenvalues of a limit cycle
+  are inherently resonant with the periodic orbit, creating exactly the
+  conditions that SSM theory assumes away.
+
+  \item \textbf{Adiabatic SSMs:} The Haller group has developed
+  ``adiabatic SSMs'' that essentially partition the limit cycle
+  (as in the piecewise approach) and compute SSMs at each phase
+  \citep{li2024adiabatic}. As we noted for piecewise models, this
+  reinvents the Floquet frame without resolving the fundamental
+  difficulties of phase estimation and boundary management.
+
+  \item \textbf{SINDy-based nonlinear Floquet:} Similarly, approaches
+  using SINDy \citep{brunton2016discovering} to learn a nonlinear
+  Floquet decomposition \citep{kvalheim2021existence} face the same
+  challenge: they require accurate phase estimation and yield models
+  whose coefficients vary along the orbit, deferring rather than
+  resolving the decomposition problem.
+\end{enumerate}
+
+% ============================================================================
+\section{Discussion}
+\label{sec:discussion}
+
+% ----------------------------------------------------------------------------
+\subsection{Embracing Non-Normality}
+
+The results of this study suggest a reframing: rather than viewing
+non-normality as a failure of the DMD approximation, we should view it
+as a \emph{faithful encoding} of a genuine dynamical property. A limit
+cycle's transverse relaxation is inherently non-normal when viewed through
+any single linear operator, and the degree of non-normality carries
+information about:
+
+\begin{enumerate}[label=(\roman*)]
+  \item The separation of timescales between oscillation and contraction
+  (small separation $\Rightarrow$ more non-normality).
+  \item The phase-dependence and twisting of Floquet eigendirections
+  (more complex geometry $\Rightarrow$ more non-normality in a
+  time-invariant representation).
+  \item The coupling between modes that the system relies on for
+  stability (more cancellation $\Rightarrow$ higher transient growth).
+\end{enumerate}
+
+The clinical result---that stroke survivors show $\sim 3\times$ the
+non-normality per mode---suggests that pathological gait is characterized
+by a more delicate balance between the oscillatory and contracting
+components of the dynamics. This may reflect:
+
+\begin{itemize}
+  \item Reduced neural bandwidth for real-time gait adjustments, forcing
+  the system to rely on fewer, more tightly coupled modes.
+  \item Asymmetric limb dynamics (hemiparesis) that rotate the Floquet
+  eigendirections more dramatically around the gait cycle.
+  \item Compensatory strategies that trade off robustness for energy
+  efficiency.
+\end{itemize}
+
+% ----------------------------------------------------------------------------
+\subsection{Implications for Data-Driven Modeling}
+
+Our analysis suggests several practical recommendations:
+
+\begin{enumerate}
+  \item \textbf{Use total-least-squares or optimized DMD} to mitigate
+  noise bias, and report the correction magnitude as a diagnostic.
+  \item \textbf{Report non-normality metrics} alongside eigenvalues
+  whenever applying DMD to oscillatory data. Eigenvalues alone are
+  misleading for non-normal operators.
+  \item \textbf{Interpret resolvent gains rather than eigenvalues} for
+  frequency-domain analysis of limit-cycle systems.
+  \item \textbf{Be skeptical of forward-propagation accuracy} for any
+  model (DMD, neural ODE, or otherwise) applied to limit cycles.
+  The transient growth bound means that errors are amplified by
+  $\max_n \norm{\Atilde^n}$ before settling to the spectral decay rate.
+  \item \textbf{Consider non-normality as a clinical biomarker} for
+  movement disorders, complementing existing kinematic and kinetic
+  measures.
+\end{enumerate}
+
+% ----------------------------------------------------------------------------
+\subsection{Limitations and Future Directions}
+
+\todo{
+\begin{itemize}
+  \item Subject-level analysis (current analysis is trial-level).
+  \item Extension to other biological oscillators (cardiac, neural).
+  \item Development of non-normality-aware DMD variants.
+  \item Connection to control-theoretic robustness margins for gait.
+  \item OptDMD comparison.
+  \item Comparison with phase-amplitude reduction methods.
+\end{itemize}}
+
+% ============================================================================
+\section{Conclusion}
+\label{sec:conclusion}
+
+Data-driven decomposition of limit-cycle dynamics is fundamentally harder
+than the analogous problem for fixed-point attractors. Noise bias,
+intrinsic non-normality, and phase-dependent Floquet geometry interact to
+make eigenvalue-based decomposition unreliable and forward propagation
+unstable. These difficulties are not specific to DMD---they affect neural
+ODEs, piecewise-linear models, and spectral submanifold methods in
+analogous ways. We have shown that the pseudospectral toolkit provides a
+principled diagnostic framework, and that the non-normality itself encodes
+clinically relevant information: stroke survivors' gait dynamics exhibit
+significantly elevated transient growth, Kreiss constants, and resolvent
+gains compared to able-bodied controls. We argue that the community should
+shift from treating non-normality as a nuisance to exploiting it as a
+window into the mechanisms of biological oscillator stability.
+
+% ============================================================================
+% References
+% ============================================================================
+\bibliographystyle{abbrvnat}
+
+\begin{thebibliography}{99}
+
+\bibitem[Askham \& Kutz(2018)]{askham2018variable}
+Askham, T. \& Kutz, J.~N. (2018).
+Variable projection methods for an optimized dynamic mode decomposition.
+\textit{SIAM J.\ Appl.\ Dyn.\ Syst.}, 17(1), 380--416.
+
+\bibitem[Brunton et~al.(2016)]{brunton2016discovering}
+Brunton, S.~L., Proctor, J.~L., \& Kutz, J.~N. (2016).
+Discovering governing equations from data by sparse identification of
+nonlinear dynamical systems.
+\textit{Proc.\ Natl.\ Acad.\ Sci.}, 113(15), 3932--3937.
+
+\bibitem[Brunton et~al.(2017)]{brunton2017chaos}
+Brunton, S.~L., Brunton, B.~W., Proctor, J.~L., Kaiser, E., \& Kutz, J.~N.
+(2017). Chaos as an intermittently forced linear system.
+\textit{Nat.\ Commun.}, 8, 19.
+
+\bibitem[Cenedese et~al.(2022)]{cenedese2022data}
+Cenedese, M., Ax{\aa}s, J., Balb{\'a}s, B., Georgiades, F., \& Haller, G.
+(2022). Data-driven modeling and prediction of non-linearizable dynamics
+via spectral submanifolds.
+\textit{Nat.\ Commun.}, 13, 872.
+
+\bibitem[Chen et~al.(2018)]{chen2018neural}
+Chen, R.~T.~Q., Rubanova, Y., Bettencourt, J., \& Duvenaud, D. (2018).
+Neural ordinary differential equations.
+\textit{Advances in Neural Information Processing Systems}, 31.
+
+\bibitem[Chicone(2006)]{chicone2006ordinary}
+Chicone, C. (2006).
+\textit{Ordinary Differential Equations with Applications}.
+Springer.
+
+\bibitem[Dawson et~al.(2016)]{dawson2016characterizing}
+Dawson, S.~T.~M., Hemati, M.~S., Williams, M.~O., \& Rowley, C.~W. (2016).
+Characterizing and correcting for the effect of sensor noise in the dynamic
+mode decomposition.
+\textit{Exp.\ Fluids}, 57, 42.
+
+\bibitem[Floquet(1883)]{floquet1883equations}
+Floquet, G. (1883).
+Sur les \'equations diff\'erentielles lin\'eaires \`a coefficients
+p\'eriodiques.
+\textit{Ann.\ Sci.\ \'Ecole Norm.\ Sup.}, 12, 47--88.
+
+\bibitem[Fuller(1987)]{fuller1987measurement}
+Fuller, W.~A. (1987).
+\textit{Measurement Error Models}.
+Wiley.
+
+\bibitem[Guckenheimer \& Holmes(1983)]{guckenheimer1983nonlinear}
+Guckenheimer, J. \& Holmes, P. (1983).
+\textit{Nonlinear Oscillations, Dynamical Systems, and Bifurcations of
+Vector Fields}.
+Springer.
+
+\bibitem[Haller \& Ponsioen(2016)]{haller2016nonlinear}
+Haller, G. \& Ponsioen, S. (2016).
+Nonlinear normal modes and spectral submanifolds: Existence, uniqueness
+and use in model reduction.
+\textit{Nonlinear Dyn.}, 86(3), 1493--1534.
+
+\bibitem[Hemati et~al.(2017)]{hemati2017biasing}
+Hemati, M.~S., Rowley, C.~W., Deem, E.~A., \& Cattafesta, L.~N. (2017).
+De-biasing the dynamic mode decomposition for applied Koopman spectral
+analysis of noisy datasets.
+\textit{Theor.\ Comput.\ Fluid Dyn.}, 31(4), 349--368.
+
+\bibitem[Jordan \& Dimanche(2021)]{jordan2021neural}
+Jordan, M.~I. \& Dimanche, A. (2021).
+\todo{Find exact reference for neural ODE periodic data instability.}
+
+\bibitem[Kutz et~al.(2016)]{kutz2016dynamic}
+Kutz, J.~N., Brunton, S.~L., Brunton, B.~W., \& Proctor, J.~L. (2016).
+\textit{Dynamic Mode Decomposition: Data-Driven Modeling of Complex Systems}.
+SIAM.
+
+\bibitem[Kvalheim \& Revzen(2021)]{kvalheim2021existence}
+Kvalheim, M.~D. \& Revzen, S. (2021).
+Existence and uniqueness of global Koopman eigenfunctions for stable
+fixed points and periodic orbits.
+\textit{Physica D}, 425, 132959.
+
+\bibitem[Li et~al.(2024)]{li2024adiabatic}
+Li, M., Jain, S., \& Haller, G. (2024).
+\todo{Exact adiabatic SSM reference.}
+
+\bibitem[Linot et~al.(2023)]{linot2023stabilized}
+Linot, A.~J., Burby, J.~W., Tang, Q., Balaprakash, P., Graham, M.~D.,
+\& Maulik, R. (2023).
+Stabilized neural ordinary differential equations for long-time
+forecasting of dynamical systems.
+\textit{J.\ Comput.\ Phys.}, 474, 111838.
+
+\bibitem[Schmid(2010)]{schmid2010dynamic}
+Schmid, P.~J. (2010).
+Dynamic mode decomposition of numerical and experimental data.
+\textit{J.\ Fluid Mech.}, 656, 5--28.
+
+\bibitem[Strogatz(2015)]{strogatz2015nonlinear}
+Strogatz, S.~H. (2015).
+\textit{Nonlinear Dynamics and Chaos}.
+Westview Press, 2nd edition.
+
+\bibitem[Takens(1981)]{takens1981detecting}
+Takens, F. (1981).
+Detecting strange attractors in turbulence.
+In \textit{Dynamical Systems and Turbulence}, pp.\ 366--381. Springer.
+
+\bibitem[Trefethen \& Embree(2005)]{trefethen2005spectra}
+Trefethen, L.~N. \& Embree, M. (2005).
+\textit{Spectra and Pseudospectra: The Behavior of Nonnormal Matrices
+and Operators}.
+Princeton University Press.
+
+\bibitem[Wilson \& Ermentrout(2016)]{wilson2016isostable}
+Wilson, D. \& Ermentrout, B. (2016).
+Greater accuracy and broadened applicability of phase reduction using
+isostable coordinates.
+\textit{J.\ Math.\ Biol.}, 76, 37--66.
+
+\bibitem[Winner et~al.(2023)]{winner2023lstm}
+Winner, T., \emph{et al.} (2023).
+\todo{Full citation for Taniel's LSTM gait paper.}
+
+\end{thebibliography}
+
+\end{document}

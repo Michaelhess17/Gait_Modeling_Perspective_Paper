@@ -1,0 +1,109 @@
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{amsmath, amssymb}
+\usepackage{geometry}
+\geometry{a4paper, margin=1in}
+\usepackage{hyperref}
+\usepackage{caption}
+
+\title{Parameterizing Pathological Gait with Limit Cycle Oscillators: \\ From Pure Phase to Full Amplitude Resilience}
+\author{}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Continuous biological motions like human walking represent stable limit cycles, yet distinguishing the subtle structural instabilities of pathological gait (e.g., following a stroke) from natural variations due to walking speed remains a challenge. In this note, we compile two specific phenomenological modeling approaches applied to empirical high-dimensional marker trajectories: an initial phase-only oscillator model (based on the Kuramoto/Shaevitz framework) and a full amplitude-phase Stuart-Landau model. By characterizing both the global cycle stability and the localized step-to-step volatility of spatial parameters, we uncover differences between Able-Bodied (AB) individuals and Hemiparetic subjects.
+\end{abstract}
+
+\section{Phase-Only Oscillators: The Kuramoto Framework}
+Initially, we approached the cyclic motion via a purely phase-based framework. Human marker coordinates were embedded into a delay-coordinate Hankel matrix and projected via Singular Value Decomposition (SVD) to identify the two primary dominant harmonic cycles. The phase angles of these modes were fit to a coupled oscillator framework to evaluate the temporal coupling between joints.
+
+Figure~\ref{fig:shaevitz_fit} demonstrates the model tracking phase progression. By exploring the parameters driving this timing constraint, we constructed a UMAP projection of the individual human trials (Figure~\ref{fig:shaevitz_umap}). While the model accurately parameterizes the timing characteristics of the limit cycle, subsequent analysis of the ``phase resilience"---a global timing-recovery metric---revealed strong confounding correlations with the subject's self-selected walking speed (Figures~\ref{fig:shaevitz_resilience} and~\ref{fig:shaevitz_residuals}). This suggested that while stroke pathways disrupt gait, modeling pure timing excludes critical information about spatial instability and Floquet multiplier structure.
+
+\begin{figure}[h!]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{../Shaevitz_model/shaevitz_fit.png}
+        \caption{Coupled phase oscillator fit.}
+        \label{fig:shaevitz_fit}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{../Shaevitz_model/umap_shaevitz_parameters.png}
+        \caption{UMAP clustering of the phase-only parameter regime across clinical populations.}
+        \label{fig:shaevitz_umap}
+    \end{minipage}
+    
+    \vspace{0.5cm}
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{../Shaevitz_model/phase_resilience_out.png}
+        \caption{Phase resilience tightly tracks simple walking speed rather than pathology alone.}
+        \label{fig:shaevitz_resilience}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{../Shaevitz_model/resilience_residuals.png}
+        \caption{Residuals of phase resilience upon factoring out speed.}
+        \label{fig:shaevitz_residuals}
+    \end{minipage}
+\end{figure}
+
+\section{Encoding Amplitude: The Stuart-Landau Model}
+To capture structural spatial limit-cycle phenomena, we upgraded to a Stuart-Landau (Hopf) network, tracking the complex amplitudes $z(t)$:
+\[ \frac{dz_i}{dt} = \mu_i z_i - z_i|z_i|^2 + i \omega_i z_i + \sum_j K_{ij} z_j \]
+A central benefit of this model is the direct accessibility of the structural dampening parameter $\mu$, reflecting Floquet-like decay toward the attractor. Fitting dynamic experimental gradients without unbounded derivative blowups required enforcing strong biologically constrained empirical frequencies ($\omega \approx \omega_{actual}$) and strict Ridge regularization on coupling magnitudes $K_{ij}$ evaluated via central differences. The globally fitted parameters correctly integrate autonomously to replicate the fundamental harmonics of observed human gait modes (Figure~\ref{fig:sl_val}).
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.75\textwidth]{../Stuart_Landau_model/stuart_landau_validation_fixed_freq.png}
+    \caption{Autonomous forward simulation of the regularized Stuart-Landau fit successfully tracking biological multi-channel amplitude variations over time.}
+    \label{fig:sl_val}
+\end{figure}
+
+\subsection{Global Resilience Correlates}
+Computing the global structural resilience metric ($\mu$) confirmed strong dependence on velocity. Utilizing a non-parametric localized LOESS regression exclusively on Able-Bodied users, we mapped the baseline ``healthy" limit-cycle rigidity across kinematic walking speeds. 
+
+\begin{figure}[h!]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{../Stuart_Landau_model/sl_resilience_with_loess.png}
+        \caption{Spatial structural rigidity $\mu$ vs. Velocity. Note the sliding-window baseline characterizing healthy subjects (AB).}
+        \label{fig:sl_res}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{../Stuart_Landau_model/sl_mu_residuals_loess.png}
+        \caption{Residual structural resilience of Stroke groups relative to the healthy non-parametric baseline.}
+        \label{fig:sl_res_residuals}
+    \end{minipage}
+\end{figure}
+
+
+\section{Intra-Trial Volatility: The Step-by-Step Variance}
+While the global parameters highlighted a systematic deficit in stroke patients (reflecting a clinical resilience delay of roughly $\sim$20ms), such a minor average margin might not capture the true mechanism of pathological locomotor instability. We hypothesized the deficit operates dynamically: stroke patients frequently shift attractor stabilization strategies step-by-step to compensate for motor noise, contrasting with the uniform, fixed-rigidity cycles of healthy pedestrians.
+
+By executing the Stuart-Landau inversion across binned temporal windows (e.g., estimating local $\mu$ parameters using 300 temporally consecutive tracking frames per step), we quantified intra-trial deviations. Rather than evaluating standard residuals, we quantified the inherent variation of $\mu$ over time. We plotted the intra-trial statistical volatility (Standard Deviation) of the stability corrections over time against local velocities (Figure \ref{fig:binned_vel}) and distributed by condition (Figure \ref{fig:binned_box}). 
+
+\begin{figure}[h!]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{../Stuart_Landau_model/binned_mu_vs_speed_loess.png}
+        \caption{Binned spatial rigidity evaluation over single-step local temporal sliding windows.}
+        \label{fig:binned_vel}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{../Stuart_Landau_model/binned_delta_mu_std_boxplot.png}
+        \caption{Intra-trial Volatility of Spatial Resilience across populations. Pathological patients display significantly rougher dynamic recalibration from step to step.}
+        \label{fig:binned_box}
+    \end{minipage}
+\end{figure}
+
+\end{document}

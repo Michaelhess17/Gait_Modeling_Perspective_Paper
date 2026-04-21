@@ -1,0 +1,631 @@
+This is pdfTeX, Version 3.141592653-2.6-1.40.27 (TeX Live 2025/nixos.org) (preloaded format=pdflatex 1980.1.1)  19 MAR 2026 17:13
+entering extended mode
+ restricted \write18 enabled.
+ %&-line parsing enabled.
+**oscillator_analysis_results.tex
+(./oscillator_analysis_results.tex
+LaTeX2e <2025-06-01> patch level 1
+L3 programming layer <2025-06-09>
+
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/base/article.cls
+Document Class: article 2025/01/22 v1.4n Standard LaTeX document class
+
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/base/size11.clo
+File: size11.clo 2025/01/22 v1.4n Standard LaTeX file (size option)
+)
+\c@part=\count275
+\c@section=\count276
+\c@subsection=\count277
+\c@subsubsection=\count278
+\c@paragraph=\count279
+\c@subparagraph=\count280
+\c@figure=\count281
+\c@table=\count282
+\abovecaptionskip=\skip49
+\belowcaptionskip=\skip50
+\bibindent=\dimen148
+)
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/base/inputenc.sty
+Package: inputenc 2024/02/08 v1.3d Input encoding file
+\inpenc@prehook=\toks17
+\inpenc@posthook=\toks18
+)
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/graphics/graphicx.sty
+Package: graphicx 2024/12/31 v1.2e Enhanced LaTeX Graphics (DPC,SPQR)
+
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/graphics/keyval.sty
+Package: keyval 2022/05/29 v1.15 key=value parser (DPC)
+\KV@toks@=\toks19
+)
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/graphics/graphics.sty
+Package: graphics 2024/08/06 v1.4g Standard LaTeX Graphics (DPC,SPQR)
+
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/graphics/trig.sty
+Package: trig 2023/12/02 v1.11 sin cos tan (DPC)
+)
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/graphics-cfg/graphics.cfg
+File: graphics.cfg 2016/06/04 v1.11 sample graphics configuration
+)
+Package graphics Info: Driver file: pdftex.def on input line 106.
+
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/graphics-def/pdftex.def
+File: pdftex.def 2024/04/13 v1.2c Graphics/color driver for pdftex
+))
+\Gin@req@height=\dimen149
+\Gin@req@width=\dimen150
+)
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/amsmath/amsmath.sty
+Package: amsmath 2025/06/16 v2.17y AMS math features
+\@mathmargin=\skip51
+
+For additional information on amsmath, use the `?' option.
+
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/amsmath/amstext.sty
+Package: amstext 2024/11/17 v2.01 AMS text
+
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/amsmath/amsgen.sty
+File: amsgen.sty 1999/11/30 v2.0 generic functions
+\@emptytoks=\toks20
+\ex@=\dimen151
+))
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/amsmath/amsbsy.sty
+Package: amsbsy 1999/11/29 v1.2d Bold Symbols
+\pmbraise@=\dimen152
+)
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/amsmath/amsopn.sty
+Package: amsopn 2022/04/08 v2.04 operator names
+)
+\inf@bad=\count283
+LaTeX Info: Redefining \frac on input line 233.
+\uproot@=\count284
+\leftroot@=\count285
+LaTeX Info: Redefining \overline on input line 398.
+LaTeX Info: Redefining \colon on input line 409.
+\classnum@=\count286
+\DOTSCASE@=\count287
+LaTeX Info: Redefining \ldots on input line 495.
+LaTeX Info: Redefining \dots on input line 498.
+LaTeX Info: Redefining \cdots on input line 619.
+\Mathstrutbox@=\box53
+\strutbox@=\box54
+LaTeX Info: Redefining \big on input line 721.
+LaTeX Info: Redefining \Big on input line 722.
+LaTeX Info: Redefining \bigg on input line 723.
+LaTeX Info: Redefining \Bigg on input line 724.
+\big@size=\dimen153
+LaTeX Font Info:    Redeclaring font encoding OML on input line 742.
+LaTeX Font Info:    Redeclaring font encoding OMS on input line 743.
+\macc@depth=\count288
+LaTeX Info: Redefining \bmod on input line 904.
+LaTeX Info: Redefining \pmod on input line 909.
+LaTeX Info: Redefining \smash on input line 939.
+LaTeX Info: Redefining \relbar on input line 969.
+LaTeX Info: Redefining \Relbar on input line 970.
+\c@MaxMatrixCols=\count289
+\dotsspace@=\muskip17
+\c@parentequation=\count290
+\dspbrk@lvl=\count291
+\tag@help=\toks21
+\row@=\count292
+\column@=\count293
+\maxfields@=\count294
+\andhelp@=\toks22
+\eqnshift@=\dimen154
+\alignsep@=\dimen155
+\tagshift@=\dimen156
+\tagwidth@=\dimen157
+\totwidth@=\dimen158
+\lineht@=\dimen159
+\@envbody=\toks23
+\multlinegap=\skip52
+\multlinetaggap=\skip53
+\mathdisplay@stack=\toks24
+LaTeX Info: Redefining \[ on input line 2949.
+LaTeX Info: Redefining \] on input line 2950.
+)
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/amsfonts/amssymb.sty
+Package: amssymb 2013/01/14 v3.01 AMS font symbols
+
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/amsfonts/amsfonts.sty
+Package: amsfonts 2013/01/14 v3.01 Basic AMSFonts support
+\symAMSa=\mathgroup4
+\symAMSb=\mathgroup5
+LaTeX Font Info:    Redeclaring math symbol \hbar on input line 98.
+LaTeX Font Info:    Overwriting math alphabet `\mathfrak' in version `bold'
+(Font)                  U/euf/m/n --> U/euf/b/n on input line 106.
+))
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/geometry/geometry.sty
+Package: geometry 2020/01/02 v5.9 Page Geometry
+
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/generic/iftex/ifvtex.sty
+Package: ifvtex 2019/10/25 v1.7 ifvtex legacy package. Use iftex instead.
+
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/generic/iftex/iftex.sty
+Package: iftex 2024/12/12 v1.0g TeX engine tests
+))
+\Gm@cnth=\count295
+\Gm@cntv=\count296
+\c@Gm@tempcnt=\count297
+\Gm@bindingoffset=\dimen160
+\Gm@wd@mp=\dimen161
+\Gm@odd@mp=\dimen162
+\Gm@even@mp=\dimen163
+\Gm@layoutwidth=\dimen164
+\Gm@layoutheight=\dimen165
+\Gm@layouthoffset=\dimen166
+\Gm@layoutvoffset=\dimen167
+\Gm@dimlist=\toks25
+)
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/hyperref/hyperref.sty
+Package: hyperref 2025-06-21 v7.01n Hypertext links for LaTeX
+
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/kvsetkeys/kvsetkeys.sty
+Package: kvsetkeys 2022-10-05 v1.19 Key value parser (HO)
+)
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/generic/kvdefinekeys/kvdefinekeys.sty
+Package: kvdefinekeys 2019-12-19 v1.6 Define keys (HO)
+)
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/generic/pdfescape/pdfescape.sty
+Package: pdfescape 2019/12/09 v1.15 Implements pdfTeX's escape features (HO)
+
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/generic/ltxcmds/ltxcmds.sty
+Package: ltxcmds 2023-12-04 v1.26 LaTeX kernel commands for general use (HO)
+)
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/generic/pdftexcmds/pdftexcmds.sty
+Package: pdftexcmds 2020-06-27 v0.33 Utility functions of pdfTeX for LuaTeX (HO
+)
+
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/generic/infwarerr/infwarerr.sty
+Package: infwarerr 2019/12/03 v1.5 Providing info/warning/error messages (HO)
+)
+Package pdftexcmds Info: \pdf@primitive is available.
+Package pdftexcmds Info: \pdf@ifprimitive is available.
+Package pdftexcmds Info: \pdfdraftmode found.
+))
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/hycolor/hycolor.sty
+Package: hycolor 2020-01-27 v1.10 Color options for hyperref/bookmark (HO)
+)
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/hyperref/nameref.sty
+Package: nameref 2025-06-21 v2.57 Cross-referencing by name of section
+
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/refcount/refcount.sty
+Package: refcount 2019/12/15 v3.6 Data extraction from label references (HO)
+)
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/generic/gettitlestring/gettitlestring.sty
+Package: gettitlestring 2019/12/15 v1.6 Cleanup title references (HO)
+
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/kvoptions/kvoptions.sty
+Package: kvoptions 2022-06-15 v3.15 Key value format for package options (HO)
+))
+\c@section@level=\count298
+)
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/etoolbox/etoolbox.sty
+Package: etoolbox 2025/02/11 v2.5l e-TeX tools for LaTeX (JAW)
+\etb@tempcnta=\count299
+)
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/generic/stringenc/stringenc.sty
+Package: stringenc 2019/11/29 v1.12 Convert strings between diff. encodings (HO
+)
+)
+\@linkdim=\dimen168
+\Hy@linkcounter=\count300
+\Hy@pagecounter=\count301
+
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/hyperref/pd1enc.def
+File: pd1enc.def 2025-06-21 v7.01n Hyperref: PDFDocEncoding definition (HO)
+Now handling font encoding PD1 ...
+... no UTF-8 mapping file for font encoding PD1
+)
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/generic/intcalc/intcalc.sty
+Package: intcalc 2019/12/15 v1.3 Expandable calculations with integers (HO)
+)
+\Hy@SavedSpaceFactor=\count302
+
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/hyperref/puenc.def
+File: puenc.def 2025-06-21 v7.01n Hyperref: PDF Unicode definition (HO)
+Now handling font encoding PU ...
+... no UTF-8 mapping file for font encoding PU
+)
+Package hyperref Info: Hyper figures OFF on input line 4181.
+Package hyperref Info: Link nesting OFF on input line 4186.
+Package hyperref Info: Hyper index ON on input line 4189.
+Package hyperref Info: Plain pages OFF on input line 4196.
+Package hyperref Info: Backreferencing OFF on input line 4201.
+Package hyperref Info: Implicit mode ON; LaTeX internals redefined.
+Package hyperref Info: Bookmarks ON on input line 4448.
+\c@Hy@tempcnt=\count303
+
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/url/url.sty
+\Urlmuskip=\muskip18
+Package: url 2013/09/16  ver 3.4  Verb mode for urls, etc.
+)
+LaTeX Info: Redefining \url on input line 4787.
+\XeTeXLinkMargin=\dimen169
+
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/generic/bitset/bitset.sty
+Package: bitset 2019/12/09 v1.3 Handle bit-vector datatype (HO)
+
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/generic/bigintcalc/bigintcalc.sty
+Package: bigintcalc 2019/12/15 v1.5 Expandable calculations on big integers (HO
+)
+))
+\Fld@menulength=\count304
+\Field@Width=\dimen170
+\Fld@charsize=\dimen171
+Package hyperref Info: Hyper figures OFF on input line 6066.
+Package hyperref Info: Link nesting OFF on input line 6071.
+Package hyperref Info: Hyper index ON on input line 6074.
+Package hyperref Info: backreferencing OFF on input line 6081.
+Package hyperref Info: Link coloring OFF on input line 6086.
+Package hyperref Info: Link coloring with OCG OFF on input line 6091.
+Package hyperref Info: PDF/A mode OFF on input line 6096.
+\Hy@abspage=\count305
+\c@Item=\count306
+\c@Hfootnote=\count307
+)
+Package hyperref Info: Driver (autodetected): hpdftex.
+
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/hyperref/hpdftex.def
+File: hpdftex.def 2025-06-21 v7.01n Hyperref driver for pdfTeX
+\Fld@listcount=\count308
+\c@bookmark@seq@number=\count309
+
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/rerunfilecheck/rerunfilecheck.sty
+Package: rerunfilecheck 2025-06-21 v1.11 Rerun checks for auxiliary files (HO)
+
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/generic/uniquecounter/uniquecounter.sty
+Package: uniquecounter 2019/12/15 v1.4 Provide unlimited unique counter (HO)
+)
+Package uniquecounter Info: New unique counter `rerunfilecheck' on input line 2
+84.
+)
+\Hy@SectionHShift=\skip54
+)
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/caption/caption.sty
+Package: caption 2023/08/05 v3.6o Customizing captions (AR)
+
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/caption/caption3.sty
+Package: caption3 2023/07/31 v2.4d caption3 kernel (AR)
+\caption@tempdima=\dimen172
+\captionmargin=\dimen173
+\caption@leftmargin=\dimen174
+\caption@rightmargin=\dimen175
+\caption@width=\dimen176
+\caption@indent=\dimen177
+\caption@parindent=\dimen178
+\caption@hangindent=\dimen179
+Package caption Info: Standard document class detected.
+)
+\c@caption@flags=\count310
+\c@continuedfloat=\count311
+Package caption Info: hyperref package is loaded.
+)
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/l3backend/l3backend-pdftex.def
+File: l3backend-pdftex.def 2025-06-09 L3 backend support: PDF output (pdfTeX)
+\l__color_backend_stack_int=\count312
+)
+No file oscillator_analysis_results.aux.
+\openout1 = `oscillator_analysis_results.aux'.
+
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 14.
+LaTeX Font Info:    ... okay on input line 14.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 14.
+LaTeX Font Info:    ... okay on input line 14.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 14.
+LaTeX Font Info:    ... okay on input line 14.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 14.
+LaTeX Font Info:    ... okay on input line 14.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 14.
+LaTeX Font Info:    ... okay on input line 14.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 14.
+LaTeX Font Info:    ... okay on input line 14.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 14.
+LaTeX Font Info:    ... okay on input line 14.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 14.
+LaTeX Font Info:    ... okay on input line 14.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 14.
+LaTeX Font Info:    ... okay on input line 14.
+
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/context/base/mkii/supp-pdf.mkii
+[Loading MPS to PDF converter (version 2006.09.02).]
+\scratchcounter=\count313
+\scratchdimen=\dimen180
+\scratchbox=\box55
+\nofMPsegments=\count314
+\nofMParguments=\count315
+\everyMPshowfont=\toks26
+\MPscratchCnt=\count316
+\MPscratchDim=\dimen181
+\MPnumerator=\count317
+\makeMPintoPDFobject=\count318
+\everyMPtoPDFconversion=\toks27
+)
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/epstopdf-pkg/epstopdf-base.sty
+Package: epstopdf-base 2020-01-24 v2.11 Base part for package epstopdf
+Package epstopdf-base Info: Redefining graphics rule for `.eps' on input line 4
+85.
+
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/latexconfig/epstopdf-sys.cfg
+File: epstopdf-sys.cfg 2010/07/13 v1.3 Configuration of (r)epstopdf for TeX Liv
+e
+))
+*geometry* driver: auto-detecting
+*geometry* detected driver: pdftex
+*geometry* verbose mode - [ preamble ] result:
+* driver: pdftex
+* paper: a4paper
+* layout: <same size as paper>
+* layoutoffset:(h,v)=(0.0pt,0.0pt)
+* modes: 
+* h-part:(L,W,R)=(72.26999pt, 452.9679pt, 72.26999pt)
+* v-part:(T,H,B)=(72.26999pt, 700.50687pt, 72.26999pt)
+* \paperwidth=597.50787pt
+* \paperheight=845.04684pt
+* \textwidth=452.9679pt
+* \textheight=700.50687pt
+* \oddsidemargin=0.0pt
+* \evensidemargin=0.0pt
+* \topmargin=-37.0pt
+* \headheight=12.0pt
+* \headsep=25.0pt
+* \topskip=11.0pt
+* \footskip=30.0pt
+* \marginparwidth=59.0pt
+* \marginparsep=10.0pt
+* \columnsep=10.0pt
+* \skip\footins=10.0pt plus 4.0pt minus 2.0pt
+* \hoffset=0.0pt
+* \voffset=0.0pt
+* \mag=1000
+* \@twocolumnfalse
+* \@twosidefalse
+* \@mparswitchfalse
+* \@reversemarginfalse
+* (1in=72.27pt=25.4mm, 1cm=28.453pt)
+
+Package hyperref Info: Link coloring OFF on input line 14.
+\@outlinefile=\write3
+\openout3 = `oscillator_analysis_results.out'.
+
+Package caption Info: Begin \AtBeginDocument code.
+Package caption Info: End \AtBeginDocument code.
+LaTeX Font Info:    Trying to load font information for U+msa on input line 16.
+
+
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/amsfonts/umsa.fd
+File: umsa.fd 2013/01/14 v3.01 AMS symbols A
+)
+LaTeX Font Info:    Trying to load font information for U+msb on input line 16.
+
+
+(/nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/te
+x/latex/amsfonts/umsb.fd
+File: umsb.fd 2013/01/14 v3.01 AMS symbols B
+)
+
+LaTeX Warning: Reference `fig:shaevitz_fit' on page 1 undefined on input line 2
+4.
+
+
+LaTeX Warning: Reference `fig:shaevitz_umap' on page 1 undefined on input line 
+24.
+
+
+LaTeX Warning: Reference `fig:shaevitz_resilience' on page 1 undefined on input
+ line 24.
+
+
+LaTeX Warning: Reference `fig:shaevitz_residuals' on page 1 undefined on input 
+line 24.
+
+<../Shaevitz_model/shaevitz_fit.png, id=4, 803.0pt x 602.25pt>
+File: ../Shaevitz_model/shaevitz_fit.png Graphic file (type png)
+<use ../Shaevitz_model/shaevitz_fit.png>
+Package pdftex.def Info: ../Shaevitz_model/shaevitz_fit.png  used on input line
+ 30.
+(pdftex.def)             Requested size: 217.42265pt x 163.06914pt.
+<../Shaevitz_model/umap_shaevitz_parameters.png, id=5, 903.375pt x 401.5pt>
+File: ../Shaevitz_model/umap_shaevitz_parameters.png Graphic file (type png)
+<use ../Shaevitz_model/umap_shaevitz_parameters.png>
+Package pdftex.def Info: ../Shaevitz_model/umap_shaevitz_parameters.png  used o
+n input line 36.
+(pdftex.def)             Requested size: 217.42265pt x 96.63152pt.
+<../Shaevitz_model/phase_resilience_out.png, id=6, 602.25pt x 401.5pt>
+File: ../Shaevitz_model/phase_resilience_out.png Graphic file (type png)
+<use ../Shaevitz_model/phase_resilience_out.png>
+Package pdftex.def Info: ../Shaevitz_model/phase_resilience_out.png  used on in
+put line 44.
+(pdftex.def)             Requested size: 217.42265pt x 144.95035pt.
+
+Underfull \hbox (badness 1454) in paragraph at lines 45--45
+[]\OT1/cmr/m/n/10.95 Figure 3: |Phase re-silience tightly tracks
+ []
+
+<../Shaevitz_model/resilience_residuals.png, id=7, 1003.75pt x 401.5pt>
+File: ../Shaevitz_model/resilience_residuals.png Graphic file (type png)
+<use ../Shaevitz_model/resilience_residuals.png>
+Package pdftex.def Info: ../Shaevitz_model/resilience_residuals.png  used on in
+put line 50.
+(pdftex.def)             Requested size: 217.42265pt x 86.96408pt.
+
+LaTeX Warning: `!h' float specifier changed to `!ht'.
+
+
+LaTeX Warning: Reference `fig:sl_val' on page 1 undefined on input line 59.
+
+<../Stuart_Landau_model/stuart_landau_validation_fixed_freq.png, id=8, 1204.5pt
+ x 803.0pt>
+File: ../Stuart_Landau_model/stuart_landau_validation_fixed_freq.png Graphic fi
+le (type png)
+<use ../Stuart_Landau_model/stuart_landau_validation_fixed_freq.png>
+Package pdftex.def Info: ../Stuart_Landau_model/stuart_landau_validation_fixed_
+freq.png  used on input line 63.
+(pdftex.def)             Requested size: 339.72592pt x 226.48033pt.
+
+LaTeX Warning: `!h' float specifier changed to `!ht'.
+
+
+
+[1
+
+{/nix/store/xd0c4pgiavjfb4si9yv21f70pn3kc039-texlive-combined-2025/share/texmf-
+var/fonts/map/pdftex/updmap/pdftex.map}]
+
+LaTeX Warning: Text page 2 contains only floats.
+
+
+
+[2 <../Shaevitz_model/shaevitz_fit.png> <../Shaevitz_model/umap_shaevitz_parame
+ters.png> <../Shaevitz_model/phase_resilience_out.png> <../Shaevitz_model/resil
+ience_residuals.png> <../Stuart_Landau_model/stuart_landau_validation_fixed_fre
+q.png>]
+<../Stuart_Landau_model/sl_resilience_with_loess.png, id=32, 602.25pt x 401.5pt
+>
+File: ../Stuart_Landau_model/sl_resilience_with_loess.png Graphic file (type pn
+g)
+<use ../Stuart_Landau_model/sl_resilience_with_loess.png>
+Package pdftex.def Info: ../Stuart_Landau_model/sl_resilience_with_loess.png  u
+sed on input line 75.
+(pdftex.def)             Requested size: 217.42265pt x 144.95035pt.
+<../Stuart_Landau_model/sl_mu_residuals_loess.png, id=33, 602.25pt x 401.5pt>
+File: ../Stuart_Landau_model/sl_mu_residuals_loess.png Graphic file (type png)
+<use ../Stuart_Landau_model/sl_mu_residuals_loess.png>
+Package pdftex.def Info: ../Stuart_Landau_model/sl_mu_residuals_loess.png  used
+ on input line 81.
+(pdftex.def)             Requested size: 217.42265pt x 144.95035pt.
+
+
+LaTeX Warning: Reference `fig:binned_vel' on page 3 undefined on input line 91.
+
+
+
+LaTeX Warning: Reference `fig:binned_box' on page 3 undefined on input line 91.
+
+
+<../Stuart_Landau_model/binned_mu_vs_speed_loess.png, id=34, 602.25pt x 401.5pt
+>
+File: ../Stuart_Landau_model/binned_mu_vs_speed_loess.png Graphic file (type pn
+g)
+<use ../Stuart_Landau_model/binned_mu_vs_speed_loess.png>
+Package pdftex.def Info: ../Stuart_Landau_model/binned_mu_vs_speed_loess.png  u
+sed on input line 97.
+(pdftex.def)             Requested size: 217.42265pt x 144.95035pt.
+<../Stuart_Landau_model/binned_delta_mu_std_boxplot.png, id=35, 602.25pt x 401.
+5pt>
+File: ../Stuart_Landau_model/binned_delta_mu_std_boxplot.png Graphic file (type
+ png)
+<use ../Stuart_Landau_model/binned_delta_mu_std_boxplot.png>
+Package pdftex.def Info: ../Stuart_Landau_model/binned_delta_mu_std_boxplot.png
+  used on input line 103.
+(pdftex.def)             Requested size: 217.42265pt x 144.95035pt.
+
+LaTeX Warning: `!h' float specifier changed to `!ht'.
+
+
+
+[3 <../Stuart_Landau_model/sl_resilience_with_loess.png> <../Stuart_Landau_mode
+l/sl_mu_residuals_loess.png>]
+
+[4 <../Stuart_Landau_model/binned_mu_vs_speed_loess.png> <../Stuart_Landau_mode
+l/binned_delta_mu_std_boxplot.png>] (./oscillator_analysis_results.aux)
+ ***********
+LaTeX2e <2025-06-01> patch level 1
+L3 programming layer <2025-06-09>
+ ***********
+
+
+LaTeX Warning: There were undefined references.
+
+
+LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
+
+
+Package rerunfilecheck Warning: File `oscillator_analysis_results.out' has chan
+ged.
+(rerunfilecheck)                Rerun to get outlines right
+(rerunfilecheck)                or use package `bookmark'.
+
+Package rerunfilecheck Info: Checksums for `oscillator_analysis_results.out':
+(rerunfilecheck)             Before: <no file>
+(rerunfilecheck)             After:  3CDC68C3CA4699F13AD6EAE3BDBF1AB5;1058.
+ ) 
+Here is how much of TeX's memory you used:
+ 11508 strings out of 469360
+ 187695 string characters out of 5461807
+ 592375 words of memory out of 5000000
+ 39732 multiletter control sequences out of 15000+600000
+ 634845 words of font info for 70 fonts, out of 8000000 for 9000
+ 319 hyphenation exceptions out of 8191
+ 75i,8n,79p,800b,451s stack positions out of 10000i,1000n,20000p,200000b,200000s
+</nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/
+fonts/type1/public/amsfonts/cm/cmbx10.pfb></nix/store/a2cksrf2p8fm17apx44ghvg6a
+r3a09ya-texlive-combined-2025-texmfdist/fonts/type1/public/amsfonts/cm/cmbx12.p
+fb></nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist
+/fonts/type1/public/amsfonts/cm/cmex10.pfb></nix/store/a2cksrf2p8fm17apx44ghvg6
+ar3a09ya-texlive-combined-2025-texmfdist/fonts/type1/public/amsfonts/cm/cmmi10.
+pfb></nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdis
+t/fonts/type1/public/amsfonts/cm/cmmi8.pfb></nix/store/a2cksrf2p8fm17apx44ghvg6
+ar3a09ya-texlive-combined-2025-texmfdist/fonts/type1/public/amsfonts/cm/cmr10.p
+fb></nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist
+/fonts/type1/public/amsfonts/cm/cmr12.pfb></nix/store/a2cksrf2p8fm17apx44ghvg6a
+r3a09ya-texlive-combined-2025-texmfdist/fonts/type1/public/amsfonts/cm/cmr17.pf
+b></nix/store/a2cksrf2p8fm17apx44ghvg6ar3a09ya-texlive-combined-2025-texmfdist/
+fonts/type1/public/amsfonts/cm/cmr8.pfb></nix/store/a2cksrf2p8fm17apx44ghvg6ar3
+a09ya-texlive-combined-2025-texmfdist/fonts/type1/public/amsfonts/cm/cmsy10.pfb
+>
+Output written on oscillator_analysis_results.pdf (4 pages, 878986 bytes).
+PDF statistics:
+ 95 PDF objects out of 1000 (max. 8388607)
+ 59 compressed objects within 1 object stream
+ 13 named destinations out of 1000 (max. 500000)
+ 46 words of extra memory for PDF output out of 10000 (max. 10000000)
+
