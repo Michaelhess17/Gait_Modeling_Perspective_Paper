@@ -299,4 +299,4 @@ end
 
 # ── Compose ──────────────────────────────────────────────────────────────────
 fig5 = plot(p_sl, p_sl_pred, p_fhn, p_fhn_pred, p_vdp, p_vdp_pred;
-            layout=(3, 2), size=(2PUB_W, 3PUB_H))
+            layout=(3, 2), size=(2 * PUB_W, 3 * PUB_H))

@@ -119,6 +119,7 @@ We train neural ODEs with three architectures (1-layer/16-hidden, 2-layer/32-hid
 
 ```{julia}
 #| label: fig-node-sine
+#| eval: false
 #| fig-format: png
 #| fig-cap: "Neural ODE failure on periodic data. (A) True trajectory and trained predictions across architectures and seeds. (B) Loss curves all plateau near the signal variance (dashed line), the loss achieved by predicting the mean. (C) Phase portrait showing collapse toward the origin. (D) Histogram of prediction amplitudes: all substantially below the true amplitude of 1.0."
 #| output: true
@@ -135,6 +136,7 @@ When training data includes trajectories perturbed off the limit cycle (providin
 
 ```{julia}
 #| label: fig-node-sl
+#| eval: false
 #| fig-format: png
 #| fig-cap: "Neural ODE failure on Stuart-Landau with transients. (A) Training data: 25 trajectories from perturbed initial conditions. (B) True vs learned vector fields. (C) Forward simulation from a perturbed IC: the neural ODE fails to reproduce the correct relaxation dynamics. (D) Floquet multiplier estimates from the neural ODE Jacobian vs ground truth."
 #| output: true
@@ -181,6 +183,7 @@ Echo state networks (ESNs) [@jaeger2001] offer a different approach: a fixed, ra
 
 ```{julia}
 #| label: fig-esn-simulated
+#| eval: false
 #| fig-format: png
 #| fig-cap: "ESN-based Floquet estimation for simulated oscillators. (A,B) Stuart-Landau: eigenvalue comparison across reservoir sizes and ESN prediction quality. (C,D) FitzHugh-Nagumo. (E,F) Van der Pol. The stride-to-stride linear map recovers Floquet multipliers with reasonable accuracy for all three systems."
 #| output: true
@@ -195,6 +198,7 @@ For the Stuart-Landau, FitzHugh-Nagumo, and van der Pol oscillators, the ESN's s
 
 ```{julia}
 #| label: fig-esn-gait
+#| eval: false
 #| fig-format: png
 #| fig-cap: "ESN-based Floquet estimation fails on real gait data. (A) One-step prediction quality looks reasonable. (B) Extracted 'Floquet' eigenvalues are scattered across the complex plane with no coherent structure. (C) Eigenvalue magnitudes shift wildly with reservoir size. (D) Across 20 able-bodied trials, eigenvalues show no convergence to a stable structure."
 #| output: true

@@ -131,4 +131,4 @@ vline!(p_d, [SL_ω / (2π)]; ls=:dash, color=:gray, lw=1, label="ω₀")
 vline!(p_d, [2 * SL_ω / (2π)]; ls=:dot, color=:gray, lw=1, label="2ω₀")
 
 # ── Compose ───────────────────────────────────────��──────────────────────────
-fig1 = plot(p_a, p_b, p_c, p_d; layout=(2, 2), size=(2PUB_W, 2PUB_H))
+fig1 = plot(p_a, p_b, p_c, p_d; layout=(2, 2), size=(2 * PUB_W, 2 * PUB_H))

@@ -255,4 +255,4 @@ annotate!(p_d, μ_true_trans + 0.05, 0.1,
           text("μ_trans=$(round(μ_true_trans; digits=3))", 7, :left))
 
 # ── Compose ──────────────────────────────────────────────────────────────────
-fig3 = plot(p_a, p_b, p_c, p_d; layout=(2, 2), size=(2PUB_W, 2PUB_H))
+fig3 = plot(p_a, p_b, p_c, p_d; layout=(2, 2), size=(2 * PUB_W, 2 * PUB_H))

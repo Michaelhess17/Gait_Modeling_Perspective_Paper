@@ -252,4 +252,4 @@ for i in 1:20
 end
 
 # ── Compose ──────────────────────────────────────────────────────────────────
-fig6 = plot(p_a, p_b, p_c, p_d; layout=(2, 2), size=(2PUB_W, 2PUB_H))
+fig6 = plot(p_a, p_b, p_c, p_d; layout=(2, 2), size=(2 * PUB_W, 2 * PUB_H))

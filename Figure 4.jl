@@ -293,4 +293,4 @@ hline!(p_e, [10]; ls=:dot, color=:red, lw=1, label="Min for 2×2 fit")
 # ── Compose ──────────────────────────────────────────────────────────────────
 fig4 = plot(p_a, p_b, p_c, p_d, p_e;
             layout=@layout([a b; c d; e{0.5w}]),
-            size=(2PUB_W, 3PUB_H))
+            size=(2 * PUB_W, 3 * PUB_H))

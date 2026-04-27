@@ -210,4 +210,4 @@ end
 vline!(p_d, [1.0]; ls=:dash, color=:black, lw=1.5, label="True amplitude")
 
 # ── Compose ──────��─────────────────────────────���─────────────────────────────
-fig2 = plot(p_a, p_b, p_c, p_d; layout=(2, 2), size=(2PUB_W, 2PUB_H))
+fig2 = plot(p_a, p_b, p_c, p_d; layout=(2, 2), size=(2 * PUB_W, 2 * PUB_H))
