@@ -1,0 +1,15 @@
+cache/
+_freeze/
+_manuscript/
+figures/
+index_files/
+*.pdf
+*.aux
+*.log
+*.out
+*.synctex.gz
+Manifest.toml
+.quarto/
+
+/.quarto/
+**/*.quarto_ipynb

@@ -1,0 +1,21 @@
+project:
+  type: manuscript
+
+manuscript:
+  article: index.qmd
+
+format:
+  html:
+    page-layout: full
+    format-links:
+      - pdf
+    comments:
+      hypothesis: true
+  pdf: default
+
+execute:
+  enabled: false
+  echo: false
+  freeze: auto
+  warning: false
+  out-width: "100%"
