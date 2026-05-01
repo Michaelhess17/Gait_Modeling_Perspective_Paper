@@ -35,6 +35,10 @@ Walking looks simple but requires remarkably sophisticated coordination. Each st
 
 A central ambition of gait biomechanics is to build *individual-specific dynamical models* of walking: models that capture not just the average gait pattern but the perturbation response, stability, and adaptability of a particular person's locomotor system. Such models would enable principled fall-risk assessment, targeted rehabilitation, and quantitative evaluation of therapeutic interventions. Despite two decades of rapid progress in data-driven dynamical systems methods, this ambition remains largely unrealised.
 
+Why this matters clinically is straightforward: clinicians do not intervene on population means, they intervene on individuals. Two patients can present with similar stride time, speed, and asymmetry, yet differ dramatically in perturbation sensitivity, compensation strategy, and adaptability to context changes (speed, incline, cognitive load, fatigue). A model that only reproduces nominal trajectories misses the latent structure that often determines whether a patient improves, plateaus, or decompensates. This is why dynamical quantities---how perturbations evolve, how quickly errors are corrected, and along which coordination channels corrections occur---are potentially more actionable than descriptive kinematics alone [@bruijn2013; @dingwell2000; @dingwell2006].
+
+At the same time, the field now has multiple partially successful modeling paradigms, each illuminating part of the problem while leaving major gaps. Classical limit-cycle analyses offer mechanistic interpretation but demand long, clean, periodic datasets [@bruijn2013; @revzen2012]. Flexible sequence models can classify or forecast well, but often sacrifice mechanistic interpretability [@winner2023]. This perspective takes the view that the bottleneck is not lack of model classes; it is the mismatch between what current models assume and what human walking data actually contain.
+
 ### The state of gait stability measurement
 
 The dominant framework treats walking as a periodic orbit---a limit cycle---and asks whether perturbations grow or decay. @bruijn2013 provided a comprehensive review of gait stability measures and their validity, identifying two main families:
@@ -50,6 +54,12 @@ Both measures share a deeper conceptual issue: they assume the system is autonom
 @winner2023 demonstrated that individual-specific dynamical structure *exists* in walking data: their LSTM-based "gait signatures" framework showed that a person's walking dynamics are identifiable and consistent across conditions, differing systematically between able-bodied and post-stroke populations. But what do these learned representations correspond to in dynamical systems terms? The neural network is a black box. We know the signatures are there, but we do not know what they mean mechanistically---which aspects of the coordination they capture, or how they relate to the perturbation response and stability properties that matter clinically.
 
 This is the *modeling gap*: we have methods that can detect individual dynamical structure (black-box neural networks) and methods that provide mechanistic interpretability (Floquet analysis, DMD eigenvalues) but cannot reliably extract that structure from real gait data. The gap exists because the interpretable methods encounter a constellation of fundamental difficulties when applied to oscillatory biological data---difficulties that the fixed-point intuition underlying most data-driven methods does not prepare practitioners for.
+
+Recent progress in robot locomotion reinforces both the promise and the caution. Reinforcement-learning-based controllers can produce highly agile legged behaviors in simulation and hardware [@hwangbo2019], and imitation-learning pipelines can reproduce realistic motion patterns from demonstrations [@peng2018deepmimic]. These are important achievements, and they show that rich locomotor behavior can be synthesized from data-driven objectives. But they do not by themselves solve the biomechanical interpretability problem relevant to clinical gait: policy success does not imply that the learned internal representation corresponds to physiologically meaningful control structure.
+
+Moreover, generalization remains a central concern. Deep RL is known to be brittle under distribution shift and out-of-distribution evaluation [@packer2018assessing; @cobbe2019procgen]. In gait terms, this means that a model can perform well on the training manifold (specific treadmill speeds, specific perturbation regimes, specific subject cohorts) yet fail when conditions shift. For a clinical biomarker or decision-support model, this limitation is not a minor technical detail---it is a primary validity threat.
+
+Finally, there is an identifiability warning that has been repeatedly emphasized in theoretical neuroscience: similar observed dynamics can arise from very different underlying parameter configurations [@prinz2004similar; @marder2006variability]. Applied here, a learned model (including an RL-based one) may reproduce realistic-looking walking trajectories while still misrepresenting the true biomechanical or neural control mechanisms. This underdetermination motivates our focus on robust operator-level signatures (e.g., non-normality, resolvent structure) rather than strong claims of unique mechanistic recovery from short, noisy recordings.
 
 ### This perspective
 
@@ -93,15 +103,7 @@ A matrix $A$ is normal if $AA^* = A^*A$. Normal matrices have orthogonal eigenve
 
 As a controlled testbed, we apply Hankel-DMD to the Stuart-Landau oscillator $\dot{z} = (\sigma + i\omega)z - z|z|^2$, the normal form for a supercritical Hopf bifurcation. With $\sigma = 0.1$ and $\omega = 2\pi$, this system has the simplest possible Floquet structure: a single nontrivial multiplier $\mu_s = e^{-2\sigma T} \approx 0.533$ with constant isostable directions.
 
-```{julia}
-#| label: fig-sl-anatomy
-#| fig-format: png
-#| fig-cap: "Non-normality anatomy of the Stuart-Landau DMD operator. Despite a spectral radius near unity, the operator exhibits transient amplification exceeding 10⁴ and pseudospectra extending well beyond the unit circle. (A) Eigenvalue spectrum. (B) Transient growth curve. (C) Pseudospectral contours. (D) Resolvent gain at r = 1.01."
-#| output: true
-
-_silent(() -> include("Figure 1.jl"))
-plot(fig1, fmt=:png)
-```
+![Non-normality anatomy of the Stuart-Landau DMD operator. Despite a spectral radius near unity, the operator exhibits transient amplification exceeding 10⁴ and pseudospectra extending well beyond the unit circle. (A) Eigenvalue spectrum. (B) Transient growth curve. (C) Pseudospectral contours. (D) Resolvent gain at r = 1.01.](figures/Figure_1.png){#fig-sl-anatomy}
 
 Even for this analytically tractable system, the Hankel-DMD operator with $\tau = 30$ delay lags exhibits a Henrici departure $\delta_H \approx 0.96$ (compared to 0 for a normal matrix), eigenvector condition numbers $\kappa(V) > 100$ (compared to $\kappa = 1$ for a normal matrix), and pseudospectra that extend beyond the unit circle. These values only grow with higher-dimensional systems: for the 66-dimensional operators fitted to gait data in @hess2026nonnormality, $\kappa(V) \sim 10^5$ and transient growth exceeds $10^4$.
 
@@ -117,16 +119,7 @@ Neural ODEs [@chen2018] learn a vector field $\dot{\mathbf{x}} = f_\theta(\mathb
 
 We train neural ODEs with three architectures (1-layer/16-hidden, 2-layer/32-hidden, 3-layer/64-hidden) on a simple circular orbit $(\sin 2\pi t, \cos 2\pi t)$ with mild noise, using 12 random seeds per architecture. Multiple-shooting training with the adjoint method is employed to mitigate vanishing gradients.
 
-```{julia}
-#| label: fig-node-sine
-#| eval: false
-#| fig-format: png
-#| fig-cap: "Neural ODE failure on periodic data. (A) True trajectory and trained predictions across architectures and seeds. (B) Loss curves all plateau near the signal variance (dashed line), the loss achieved by predicting the mean. (C) Phase portrait showing collapse toward the origin. (D) Histogram of prediction amplitudes: all substantially below the true amplitude of 1.0."
-#| output: true
-
-_silent(() -> include("Figure 2.jl"))
-plot(fig2, fmt=:png)
-```
+![Neural ODE failure on periodic data. (A) True trajectory and trained predictions across architectures and seeds. (B) Loss curves all plateau near the signal variance (dashed line), the loss achieved by predicting the mean. (C) Phase portrait showing collapse toward the origin. (D) Histogram of prediction amplitudes: all substantially below the true amplitude of 1.0.](figures/Figure_2.png){#fig-node-sine}
 
 Across all architectures and seeds, the neural ODE converges to predicting a trajectory with amplitude far below the true value---effectively collapsing toward the mean. The training loss plateaus near the signal variance, which is exactly the loss achieved by predicting zero (the time-averaged trajectory). This is a *loss landscape* problem: the mean prediction sits in a broad basin of attraction in parameter space, and gradient-based optimisation cannot escape it because small perturbations to the predicted trajectory do not reduce the loss---the error from being too early in one half of the cycle is offset by being too late in the other half.
 
@@ -134,16 +127,7 @@ Across all architectures and seeds, the neural ODE converges to predicting a tra
 
 When training data includes trajectories perturbed off the limit cycle (providing information about the transverse dynamics), the neural ODE faces a compound problem: it must learn both the orbital dynamics and the contraction toward the cycle.
 
-```{julia}
-#| label: fig-node-sl
-#| eval: false
-#| fig-format: png
-#| fig-cap: "Neural ODE failure on Stuart-Landau with transients. (A) Training data: 25 trajectories from perturbed initial conditions. (B) True vs learned vector fields. (C) Forward simulation from a perturbed IC: the neural ODE fails to reproduce the correct relaxation dynamics. (D) Floquet multiplier estimates from the neural ODE Jacobian vs ground truth."
-#| output: true
-
-_silent(() -> include("Figure 3.jl"))
-plot(fig3, fmt=:png)
-```
+*Figure generation for this panel is skipped in the current build (Figure 3 script currently unstable/slow).* 
 
 Even when the orbit is approximately learned, the transverse dynamics are wrong: the neural ODE cannot simultaneously fit the orbital rotation and the radial contraction with the correct rates. Forward simulation from perturbed initial conditions diverges or spirals incorrectly. Floquet multiplier estimates extracted from the neural ODE's Jacobian bear little resemblance to the ground truth.
 
@@ -151,17 +135,9 @@ These findings are consistent with @linot2023, who documented the need for stabi
 
 ## Demonstration III: piecewise-linear models fragment the problem without solving it
 
-An intuitive strategy for handling the time-varying Floquet structure is to partition the limit cycle into angular sectors and fit a separate linear model $\mathbf{x}_{k+1} \approx A_j\,\mathbf{x}_k$ in each sector. One can then estimate the monodromy matrix as the product $M \approx A_K \cdots A_1$. Similarly, a *next-cycle model* fits a single operator $\mathbf{x}(t+T) = A\,\mathbf{x}(t)$ mapping states one full period ahead, directly targeting Floquet structure. We test both approaches on the Stuart-Landau oscillator with varying amounts of data and noise.
+An intuitive strategy for handling the time-varying Floquet structure is to partition the limit cycle into angular sectors and fit a separate linear model $\mathbf{x}_{k+1} \approx A_j\,\mathbf{x}_k$ in each sector. One can then estimate the monodromy matrix as the product $M \approx A_K \cdots A_1$. Similarly, a *next-cycle model* fits a single operator $\mathbf{x}(t+T) = A\,\mathbf{x}(t)$ mapping states one full period ahead, directly targeting Floquet structure. We test both approaches on the Van der Pol oscillator with varying amounts of data and noise.
 
-```{julia}
-#| label: fig-piecewise
-#| fig-format: png
-#| fig-cap: "Piecewise-linear and next-cycle model failure. (A) Phase-partitioned regions around the limit cycle. (B) Forward prediction error compounds at region boundaries, growing exponentially even with abundant training data. (C) Floquet multiplier estimation error vs number of partitions---more partitions do not improve accuracy and eventually worsen it due to data fragmentation. (D) Next-cycle model error vs training data length; even 5,000 periods of data do not drive the error below 1% with realistic noise. (E) Data fragmentation: the number of samples per partition drops rapidly as partitions increase."
-#| output: true
-
-_silent(() -> include("Figure 4.jl"))
-plot(fig4, fmt=:png)
-```
+![Piecewise-linear and next-cycle model failure on Van der Pol data. (A) Realistic noisy transient trajectory with phase partitions overlaid. (B) Forward prediction error compounds on transient test data. (C) Piecewise Floquet error from transient data. (D) Next-cycle error from transient data. (E) Data fragmentation: samples per partition decrease as partitions increase.](figures/Figure_4.png){#fig-piecewise}
 
 The piecewise approach faces compounding difficulties:
 
@@ -181,31 +157,13 @@ Echo state networks (ESNs) [@jaeger2001] offer a different approach: a fixed, ra
 
 ### Simulated systems: striking accuracy
 
-```{julia}
-#| label: fig-esn-simulated
-#| eval: false
-#| fig-format: png
-#| fig-cap: "ESN-based Floquet estimation for simulated oscillators. (A,B) Stuart-Landau: eigenvalue comparison across reservoir sizes and ESN prediction quality. (C,D) FitzHugh-Nagumo. (E,F) Van der Pol. The stride-to-stride linear map recovers Floquet multipliers with reasonable accuracy for all three systems."
-#| output: true
-
-_silent(() -> include("Figure 5.jl"))
-plot(fig5, fmt=:png)
-```
+![ESN-based Floquet estimation for simulated oscillators. (A,B) Stuart-Landau: eigenvalue comparison across reservoir sizes and ESN prediction quality. (C,D) FitzHugh-Nagumo. (E,F) Van der Pol. The stride-to-stride linear map recovers Floquet multipliers with reasonable accuracy for all three systems.](figures/Figure_5.png){#fig-esn-simulated}
 
 For the Stuart-Landau, FitzHugh-Nagumo, and van der Pol oscillators, the ESN's stride-to-stride linear map recovers Floquet multipliers with reasonable accuracy across a range of reservoir sizes. The method is simple---just linear regression on delay-embedded data---and requires no knowledge of the governing equations.
 
 ### Real walking data: complete failure
 
-```{julia}
-#| label: fig-esn-gait
-#| eval: false
-#| fig-format: png
-#| fig-cap: "ESN-based Floquet estimation fails on real gait data. (A) One-step prediction quality looks reasonable. (B) Extracted 'Floquet' eigenvalues are scattered across the complex plane with no coherent structure. (C) Eigenvalue magnitudes shift wildly with reservoir size. (D) Across 20 able-bodied trials, eigenvalues show no convergence to a stable structure."
-#| output: true
-
-_silent(() -> include("Figure 6.jl"))
-plot(fig6, fmt=:png)
-```
+![ESN-based Floquet estimation fails on real gait data. (A) One-step prediction quality looks reasonable. (B) Extracted 'Floquet' eigenvalues are scattered across the complex plane with no coherent structure. (C) Eigenvalue magnitudes shift wildly with reservoir size. (D) Across 20 able-bodied trials, eigenvalues show no convergence to a stable structure.](figures/Figure_6.png){#fig-esn-gait}
 
 When the same approach is applied to real walking data---6 bilateral joint angles from the @winner2023 dataset---the picture changes completely. ESN one-step prediction quality looks reasonable (the model tracks the kinematics), but the extracted eigenvalue structure is incoherent: eigenvalues scatter across the complex plane, shift wildly with reservoir size, and show no convergence across trials from the same population. The clean Floquet structure that emerged so naturally from simulated oscillators simply does not exist in the data.
 
@@ -238,6 +196,10 @@ These findings suggest that post-stroke locomotor impairment is not a scalar deg
 
 **SINDy-based Floquet decomposition** [@brunton2016; @kvalheim2021] uses sparse regression to learn a nonlinear Floquet decomposition, but requires accurate phase estimation and yields orbit-varying coefficients, deferring rather than resolving the decomposition problem.
 
+**Reinforcement learning and imitation learning approaches** can generate impressive locomotor behaviors [@hwangbo2019; @peng2018deepmimic], and are increasingly influential in both robotics and computational motor control. However, these approaches typically optimize task reward or behavioral similarity, not biomechanical interpretability. As a result, they can be excellent for control synthesis yet weak for scientific inference about patient-specific mechanisms. Their known generalization fragility under distribution shift [@packer2018assessing; @cobbe2019procgen] further limits direct translation to clinical settings where condition drift is the rule, not the exception.
+
+The identifiability problem compounds this concern: reproducing output trajectories does not guarantee recovery of the underlying dynamical substrate [@prinz2004similar; @marder2006variability]. For gait biomechanics, this means that "good-looking walking" in a learned policy or simulator should not be conflated with faithful recovery of neuromechanical structure.
+
 ### Practical recommendations
 
 1. **Report non-normality metrics** alongside eigenvalues whenever applying DMD to oscillatory data. Eigenvalues alone are misleading for non-normal operators.
@@ -248,7 +210,7 @@ These findings suggest that post-stroke locomotor impairment is not a scalar deg
 
 ### Limitations and future directions
 
-Our computational demonstrations use relatively simple 2D oscillators. Real gait dynamics unfold in a much higher-dimensional space with stronger noise, quasi-periodicity, and non-stationarity. The piecewise-linear and next-cycle model results are shown on the Stuart-Landau oscillator; extending these demonstrations to high-dimensional systems with realistic noise levels would strengthen the conclusions. The ESN Floquet extraction uses a stride-to-stride linear map rather than the full reservoir Jacobian chain---a more sophisticated implementation might improve results on simulated systems but is unlikely to resolve the fundamental issues with real data.
+Our computational demonstrations use relatively simple 2D oscillators. Real gait dynamics unfold in a much higher-dimensional space with stronger noise, quasi-periodicity, and non-stationarity. The piecewise-linear and next-cycle model results are shown on a Van der Pol benchmark; extending these demonstrations to higher-dimensional neuromechanical models with realistic noise and forcing would further strengthen the conclusions. The ESN Floquet extraction uses a stride-to-stride linear map rather than the full reservoir Jacobian chain---a more sophisticated implementation might improve results on simulated systems but is unlikely to resolve the fundamental issues with real data.
 
 The connection between operator non-normality and clinical outcomes requires further validation. Establishing predictive validity for fall risk, convergent validity with existing measures like $\lambda_S$, and sensitivity to therapeutic change are natural next steps. Extensions incorporating residual DMD for spectral convergence guarantees, measure-theoretic Koopman formulations, or hybrid embeddings that combine delay coordinates with nonlinear observables may yield richer operator-level phenotypes for clinical stratification.
 

@@ -253,3 +253,4 @@ end
 
 # ── Compose ──────────────────────────────────────────────────────────────────
 fig6 = plot(p_a, p_b, p_c, p_d; layout=(2, 2), size=(2 * PUB_W, 2 * PUB_H))
+savefig(fig6, "figures/Figure 6.svg")

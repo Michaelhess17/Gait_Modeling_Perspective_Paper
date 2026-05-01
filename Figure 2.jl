@@ -19,7 +19,7 @@ const NODE_DT      = 0.05
 const NODE_T_TRAIN = 10.0
 const NODE_NOISE   = 0.02
 const N_SEEDS      = 4
-const N_EPOCHS     = 100
+const N_EPOCHS     = 500
 
 t_data = collect(0.0:NODE_DT:NODE_T_TRAIN)
 n_data = length(t_data)
@@ -211,3 +211,4 @@ vline!(p_d, [1.0]; ls=:dash, color=:black, lw=1.5, label="True amplitude")
 
 # ── Compose ──────��─────────────────────────────���─────────────────────────────
 fig2 = plot(p_a, p_b, p_c, p_d; layout=(2, 2), size=(2 * PUB_W, 2 * PUB_H))
+savefig(fig2, "figures/Figure 2.svg")
