@@ -1,7 +1,5 @@
-cache/
 _freeze/
 _manuscript/
-figures/
 index_files/
 *.pdf
 *.aux
