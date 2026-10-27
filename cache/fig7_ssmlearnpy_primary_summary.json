@@ -1,0 +1,35 @@
+{
+  "settings": {
+    "script_version": 4,
+    "delay_lags": 30,
+    "ssm_dim": 2,
+    "geometry_degree": 3,
+    "dynamics_degree": 9,
+    "alpha": 0.0001
+  },
+  "n_trials": 299,
+  "finite_1s": 273,
+  "finite_3s": 273,
+  "finite_5s": 273,
+  "median_rmse_1s": 0.27550954238542685,
+  "median_rmse_3s": 0.379325727016019,
+  "median_rmse_5s": 0.6220463921204533,
+  "groups": {
+    "AB": {
+      "n": 180,
+      "finite_3s": 170,
+      "median_rmse_3s": 0.3563124249382261
+    },
+    "HF": {
+      "n": 65,
+      "finite_3s": 57,
+      "median_rmse_3s": 0.379325727016019
+    },
+    "LF": {
+      "n": 54,
+      "finite_3s": 46,
+      "median_rmse_3s": 0.6284940287579113
+    }
+  },
+  "oscillator_median_rmse": 0.002522722835632307
+}

@@ -11,3 +11,15 @@ Manifest.toml
 
 /.quarto/
 **/*.quarto_ipynb
+# pixi environments
+.pixi/*
+!.pixi/config.toml
+.venv-ssm/
+cache/matplotlib/
+__pycache__/
+
+# old / superseded analyses (see archive/README.md)
+archive/
+
+# run logs
+logs/
