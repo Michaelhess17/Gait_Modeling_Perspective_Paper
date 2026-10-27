@@ -163,14 +163,15 @@ Open: whether to add an LSTM (the gait-signatures model class) **[new]**. A revi
 **¶4. Linear models of deviations target variability directly.** A linear operator fitted to delay-embedded kinematics describes how deviations evolve: impulse responses, transient growth, and cross-joint transfer. These are variability-generating structure, not mean shape.
 
 **¶5. Learnability, again.** The quantities that matter (transverse, short-timescale, closed-loop) are exactly the ones passive on-cycle data constrain least. Perturbation-rich experiments and models whose estimation error can be analysed are therefore both needed.
+- Stride-level dynamics are not identifiable from 15-s trials **[have: iv_gait_stride.jl]**. Section deviations carry over to the next stride with lag-1 correlation about 0.1–0.3 and to the one after with about −0.08 to −0.02, within the −1/n bias of removing each trial's mean over ~11 strides. The instrumental-variable estimate (Fig 6) needs that lag-2 signal and returns anything from 0.06 to >40; least squares gives 0.1–0.3 with an unknown noise bias. Separating noise bias from stride-to-stride dynamics needs long recordings (hundreds of strides) or perturbations.
 
-**Figure 5: A gait recording, and a model fitted to it, is mostly the mean cycle** **[have: Fig5_gait_variability.jl, fig5_gait_data.jl; companion paper's 299 trials, 42 people]**.
+**Figure 5: Gait recordings are mostly the mean cycle; the small deviations still change what a model reports** **[have: Fig5_gait_variability.jl, fig5_gait_data.jl; companion paper's 299 trials, 42 people]**.
 - (A) One able-bodied trial: strides, mean cycle, deviations.
 - (B) Deviation share of variance against strides per trial: median 1.4% (AB), 1.6% (HF), 4.7% (LF); 3–19 strides per 15-s trial (median 11). The slowest trials (24–43 cm/s, 4–9 strides) reach 15–45%.
-- (C) The companion paper's transient growth (reimplemented, r = 1.000 with its per-trial values) against delay window, real trials vs the trial's own mean cycle repeated with no deviations. At the companion's window (⅓ stride) the mean cycle alone gives 71–75% of log TG, the AB < HF < LF ordering, and r = 0.80 with the real values. With a full-stride window the mean cycle gives exactly TG = 1; what remains is smaller but still graded (log TG 0.05 / 0.10 / 0.20).
-- (D) Identification (the companion paper's split-half protocol, chance 2.4%): mean-cycle shape 75%; range-of-motion shares (6 numbers) 69%; operator map, recorded trials 63% (companion: 64.5%); operator map, mean cycle only 69%; deviation SD profile 62%; deviation cross-joint correlation 52%.
-- Caveats for the caption: deviation features can carry within-stride timing jitter (∝ mean-cycle velocity) and marker artefacts; very slow trials are irregular.
-- **Consequence for the companion paper (flag to Michael):** its transient-growth group differences and its 64.5% identification are largely mean-cycle properties under a ⅓-stride window. The full-stride-window version keeps the group ordering, which is the cleaner claim.
+- (C) The companion paper's transient growth (reimplemented, r = 1.000 with its per-trial values) against delay window: recorded trials vs the trial's own mean cycle repeated with no deviations. A periodic signal has nothing to amplify, yet over a window shorter than the stride its harmonics are non-orthogonal, so TG > 1: at the companion's ⅓-stride window the mean cycle alone gives TG 1.57× / 1.95× / 2.65× (AB/HF/LF), and 69% of the LF–AB difference. At a full-stride window it gives exactly TG = 1.
+- (D) What the deviations add (per-trial Δ log₁₀ TG, recorded − mean cycle only): medians 0.03–0.10 (AB), 0.06–0.10 (HF), 0.09–0.20 (LF) across windows (×1.1–1.6), upper quartiles to 0.3. Deviations that are 1–5% of the variance raise TG by 10–60%, graded by group; at a full-stride window this is the whole effect (0.05 / 0.10 / 0.20).
+- Supplement (FigS5_identification.jl): identification (companion split-half protocol, chance 2.4%): mean-cycle shape 75%, range-of-motion shares 69%, operator map of the recorded trials 63% (companion: 64.5%), operator map of the mean cycle alone 69%, deviation SD profile 62%, deviation cross-joint correlation 52%. Use in §5 ¶3 as a sentence: identification success is not evidence that a model captured dynamics.
+- **For the companion paper (flagged to Michael):** at its ⅓-stride window most of its TG and of its group differences is a mean-cycle/window property; the deviation part survives and is graded, and a full-stride window isolates it. Its 64.5% identification is matched by the mean cycle alone.
 
 ---
 
@@ -207,7 +208,7 @@ Open: whether to add an LSTM (the gait-signatures model class) **[new]**. A revi
 - The claim is about structure and analysability, not universal accuracy.
 
 **Figure 6: Linear-model affordances** **[have: Fig6_linear_affordances.jl]**.
-- (A) Off-cycle relaxation per fit and per start phase: DMD (one fit) against ESN and neural-ODE seeds.
+- (A) Coupled FHN off-cycle relaxation per fit and per start phase: DMD (one fit) against ESN and neural-ODE seeds. Stuart–Landau dropped (too simple; DMD reproducibly wrong at 10 decays). A second, gait-like system (SLIP or Van der Pol) would need new ESN/NODE fits.
 - (B, C) SLIP section-map ρ̂ against measurement noise: LS, FB, TLS, IV; open loop and with speed feedback.
 - (D) Against record length at noise 0.25×: LS converges to the wrong value, IV to the truth.
 - Optional later: a residual-verified (ResDMD) spectrum on gait or SLIP.

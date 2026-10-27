@@ -2,10 +2,11 @@
 # Figure 6 — What a linear model makes possible: one answer per setting, and an estimator bias that can be
 # analysed and removed (OUTLINE.md §6 ¶2, ¶4).
 #
-#   (A) Off-cycle relaxation rate per cycle of decay-trained models (scripts/offcycle_v2.jl; 10 decays × 3
-#       cycles, same data for every model): large markers = each fit (median over 4 start phases), small
-#       markers = each start phase. Hankel-DMD is a single least-squares fit (no seed); ESN and neural ODE
-#       one fit per seed at fixed settings. Line: truth (band: its range over the start phases).
+#   (A) Coupled FHN: off-cycle relaxation rate per cycle of decay-trained models (scripts/offcycle_v2.jl;
+#       10 decays × 3 cycles, same data for every model): large markers = each fit (median over 4 start phases),
+#       small markers = each start phase. Hankel-DMD is a single least-squares fit (no seed); ESN (4 seeds) and
+#       neural ODE (3 seeds) at fixed settings. Line: truth (band: its range over the start phases).
+#       (Stuart–Landau, dropped as too simple: DMD 0.88 vs truth 0.58 at 10 decays, ESN 0.46–0.48, NODE 0.49–0.54.)
 #   (B, C) SLIP section-map spectral radius against measurement noise (2000 strides; data and noise model of
 #       Fig 3): least squares, forward–backward, total least squares and instrumental variables
 #       (scripts/fig6_bias_correction.jl). (B) open loop; (C) with speed feedback. Median and IQR over 20 walks.
@@ -28,30 +29,27 @@ METH = [("LS", "least squares", CAT[1], :circle), ("FB", "forward–backward", C
 
 fig = Figure(size = (COL2, 120MM)); g = fig[1, 1] = GridLayout()
 
-# ── A: seeds and start phases ────────────────────────────────────────────────
-MODELS = [("dmd", "DMD", CAT[1]), ("esn", "ESN", CAT[2]), ("node", "NODE", CAT[3])]
-axA = Axis(g[1, 1]; ylabel = "Relaxation rate per cycle", title = "Same data: one fit, or one per seed",
-           xticks = ([1, 2, 3, 5, 6, 7], repeat([m[2] for m in MODELS], 2)), limits = (0.3, 7.7, 0.0, 1.25))
-for (s, (sys, name)) in enumerate((("cfhn", "coupled FHN"), ("sl", "Stuart–Landau")))
-    x0 = 4(s - 1)
-    tr = nothing
-    for (k, (m, _, col)) in enumerate(MODELS)
-        fs = sort(filter(f -> startswith(f, "offv2_$(sys)_$(m)_"), readdir(FDIR)))
-        for (j, f) in enumerate(fs)
-            o = deserialize(joinpath(FDIR, f)); tr = o
-            dx = length(fs) == 1 ? 0.0 : (j - (length(fs) + 1) / 2) * 0.13
-            ps = rate.(o.all_own)
-            scatter!(axA, fill(x0 + k + dx, length(ps)), min.(ps, 1.22); color = (col, 0.45), markersize = 3)
-            scatter!(axA, [x0 + k + dx], [rate(o.own)]; color = col, markersize = 6.5, strokecolor = :white, strokewidth = 0.5)
-        end
+# ── A: seeds and start phases (coupled FHN) ──────────────────────────────────
+MODELS = [("dmd", "Hankel-DMD", CAT[1]), ("esn", "ESN", CAT[2]), ("node", "neural ODE", CAT[3])]
+axA = Axis(g[1, 1]; ylabel = "Relaxation rate per cycle", title = "Coupled FHN, same data: one fit, or one per seed",
+           xticks = (1:3, [m[2] for m in MODELS]), limits = (0.4, 3.6, 0.0, 1.25))
+tr = nothing
+for (k, (m, _, col)) in enumerate(MODELS)
+    fs = sort(filter(f -> startswith(f, "offv2_cfhn_$(m)_"), readdir(FDIR)))
+    for (j, f) in enumerate(fs)
+        o = deserialize(joinpath(FDIR, f)); global tr = o
+        dx = length(fs) == 1 ? 0.0 : (j - (length(fs) + 1) / 2) * 0.16
+        ps = rate.(o.all_own)
+        scatter!(axA, fill(k + dx, length(ps)), min.(ps, 1.22); color = (col, 0.45), markersize = 3.5)
+        scatter!(axA, [k + dx], [rate(o.own)]; color = col, markersize = 7, strokecolor = :white, strokewidth = 0.5)
     end
-    tp = rate.(tr.all_truth)
-    poly!(axA, Point2f[(x0 + 0.55, minimum(tp)), (x0 + 3.45, minimum(tp)), (x0 + 3.45, maximum(tp)), (x0 + 0.55, maximum(tp))];
-          color = (C_TRUTH, 0.08))
-    lines!(axA, [x0 + 0.55, x0 + 3.45], fill(rate(tr.truth), 2); color = C_TRUTH, linestyle = :dash, linewidth = 1.0)
-    text!(axA, x0 + 2, 0.06; text = name, fontsize = 7, align = (:center, :bottom))
 end
-text!(axA, 7.6, 1.24; text = "small: each start phase", fontsize = 6.5, color = C_REF, align = (:right, :top))
+tp = rate.(tr.all_truth)
+band!(axA, [0.4, 3.6], fill(minimum(tp), 2), fill(maximum(tp), 2); color = (C_TRUTH, 0.08))
+hlines!(axA, rate(tr.truth); color = C_TRUTH, linestyle = :dash, linewidth = 1.0)
+text!(axA, 0.45, minimum(tp) - 0.02; text = @sprintf("truth %.2f\n(band: start phases)", rate(tr.truth)), fontsize = 6.5,
+      align = (:left, :top))
+text!(axA, 3.58, 1.24; text = "large: each fit · small: each start phase", fontsize = 6.5, color = C_REF, align = (:right, :top))
 plabel!(g[1, 1], "A")
 
 # ── B, C: against measurement noise ──────────────────────────────────────────

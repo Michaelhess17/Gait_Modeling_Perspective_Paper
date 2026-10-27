@@ -19,7 +19,7 @@ Section and figure numbers refer to ../OUTLINE.md.
   identification by feature family
 - `Fig6_linear_affordances.jl` (+ `fig6_bias_correction.jl`, off-cycle caches): seed reproducibility; LS / FB /
   TLS / instrumental-variable section maps of SLIP under measurement noise
-- Supplement: `FigS1_forecast_baselines.jl`, `FigS2_node_gait.jl`, `FigS3_floquet_models.jl` (needs rebuilding
+- Supplement: `FigS5_identification.jl` (from the Fig 5 cache), `FigS1_forecast_baselines.jl`, `FigS2_node_gait.jl`, `FigS3_floquet_models.jl` (needs rebuilding
   from tuned/decay results), `FigS4_offcycle.jl`
 
 ## Self-driving benchmark (§3, Fig 2)
@@ -53,6 +53,7 @@ Include chain: `floquet_maps_benchmark.jl` (coupled FHN system and return-map es
 - `dmd_noise_variants.jl`: least squares vs forward–backward vs TLS DMD under measurement noise
 - `noise_models.jl`: DMD / ESN / neural ODE relaxation under measurement noise, clean and noisy warm-up
 - `fig6_bias_correction.jl`: the same four estimators on the SLIP section map (Fig 6B–D)
+- `iv_gait_stride.jl`: LS vs instrumental-variable stride maps on human gait (not identifiable from 15-s trials)
 
 ## Coupling direction (§2 ¶2, supplement)
 - `coupling_benchmark.jl`, `summarize_coupling.jl`
