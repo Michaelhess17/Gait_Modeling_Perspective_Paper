@@ -52,8 +52,8 @@ INFO_END = TRAIN_STEPS + 1  # SSM initial condition includes z[1000]
 OFFSET = TRAIN_STEPS - DELAY_LAGS  # target index for test column j is OFFSET + j
 HORIZONS = {"1s": 99, "3s": 299, "5s": 499}
 PMIN, PMAX = 50, 250  # 0.5-2.5 s
-DMD_RANK = 10
-DMD_RIDGE = 1e-3
+DMD_RANK = 70        # was 10, which limited the fit (1-s error 0.27 vs 0.21 at rank >= 30)
+DMD_RIDGE = 1e-4     # Tikhonov strength relative to the leading singular value squared (companion paper)
 
 
 def zscore(x_trial: np.ndarray) -> np.ndarray:
@@ -163,21 +163,38 @@ def pred_phase_template(z: np.ndarray, period: float, nbins: int = 100, **_) -> 
     return out
 
 
-def pred_hankel_dmd(z: np.ndarray, rank: int = DMD_RANK, ridge: float = DMD_RIDGE, **_) -> np.ndarray:
-    """Linear map on rank-r projection of the same 31-block delay embedding as the SSM.
+def _stabilise(A: np.ndarray) -> np.ndarray:
+    """Pin eigenvalues outside the unit circle onto it, block by block in the real Schur form (companion paper)."""
+    from scipy.linalg import schur
+    T, Z = schur(A, output="real"); n = T.shape[0]; i = 0
+    while i < n:
+        if i < n - 1 and T[i + 1, i] != 0:
+            m = np.max(np.abs(np.linalg.eigvals(T[i:i + 2, i:i + 2])))
+            if m > 1:
+                T[i:i + 2, i:i + 2] /= m
+            i += 2
+        else:
+            if abs(T[i, i]) > 1:
+                T[i, i] /= abs(T[i, i])
+            i += 1
+    return Z @ T @ Z.T
 
+
+def pred_hankel_dmd(z: np.ndarray, rank: int = DMD_RANK, ridge: float = DMD_RIDGE, **_) -> np.ndarray:
+    """Linear map on the rank-r POD projection of the same 31-block delay embedding as the SSM.
+
+    The companion paper's fit: exact DMD with ridge filter S/(S^2 + ridge*s1^2) and Schur stabilisation.
     Initial condition and read-out are identical to ssm_fit_gait.py: IC is the
     delay vector z[970..1000]; column j's first block predicts z[970+j].
     """
     lags = DELAY_LAGS
     zt = z[:TRAIN_STEPS]
     H = np.vstack([zt[i : TRAIN_STEPS - lags + i].T for i in range(lags + 1)])  # (186, 970)
-    U, _, _ = np.linalg.svd(H, full_matrices=False)
-    Ur = U[:, :rank]
-    a = Ur.T @ H
-    X, Y = a[:, :-1], a[:, 1:]
-    G = X @ X.T
-    A = Y @ X.T @ np.linalg.inv(G + ridge * np.trace(G) / rank * np.eye(rank))
+    X, Y = H[:, :-1], H[:, 1:]
+    U, S, Vt = np.linalg.svd(X, full_matrices=False)
+    r = min(rank, len(S))
+    Ur, Sr, Vr = U[:, :r], S[:r], Vt[:r].T
+    A = _stabilise(Ur.T @ Y @ Vr @ np.diag(Sr / (Sr**2 + ridge * S[0] ** 2)))
     h0 = np.concatenate([z[OFFSET + i] for i in range(lags + 1)])  # z[970..1000]
     ak = Ur.T @ h0
     out = np.empty((TEST_STEPS, z.shape[1]))

@@ -13,9 +13,12 @@
 # Observed state: centre-of-mass height and velocities (y, ẋ, ẏ), continuous through touchdown and liftoff,
 # resampled to SPC = 110 samples per step (one step = one period of the CoM motion), the samples-per-cycle of the
 # coupled-FHN benchmark, so the model code is shared unchanged.
-#   decays    per data seed: 10 trajectories of 3 steps from VLO states perturbed by (0.003 m, 0.2°) × randn, each
-#             starting at a random phase, with small stride kicks (process noise) at every VLO
-#   starts    4 off-cycle test runs, perturbation (±0.004 m in y or ±0.3° in θ), warm-up starting at 4 phases, no kicks
+#   decays    per data seed: 10 trajectories of 3 steps from VLO states perturbed by (2 mm, 2°) × randn, each
+#             starting at a random phase, with small stride kicks (0.2 mm, 0.2°; process noise) at every VLO
+#   starts    4 off-cycle test runs, perturbation ±2 mm in y or ±3° in θ, warm-up starting at 4 phases, no kicks
+# Perturbation sizes are balanced in the observed coordinates: at fixed energy 1° of θ moves the CoM state about as
+# much as 1 mm of y (≈ 0.13 vs 0.27 SD of the cycle), and 3 mm of y is already nonlinear (decay ≈ 0.91 per step
+# instead of 0.77). The step map is strongly non-normal in (y, θ): J ≈ [1.31 0.03; −12.4 0.19].
 #   oncycle   the same 4 runs from the fixed point (the models' on-cycle reference)
 
 using SLIP, LinearAlgebra, Statistics, Serialization, Printf, Random
@@ -25,8 +28,8 @@ const AOA, KTILDE = 73.0, 21.0
 const EBAR = -0.054 * log10(KTILDE)^2 + 0.189 * log10(KTILDE) + 0.898
 const SPC = 110
 const N_TRAJ, TRAJ_CYC = 10, 3
-const PERT = (0.003, deg2rad(0.2))
-const KICK = (0.0003, deg2rad(0.03))
+const PERT = (0.002, deg2rad(2.0))
+const KICK = (0.0002, deg2rad(0.2))
 const W_WARM = 170
 const SEEDS = vcat(1:10, 101)
 const OPTS = SimOptions(t_max = 5.0, max_steps = 3, dt = 0.0005)
@@ -89,14 +92,14 @@ if abspath(PROGRAM_FILE) == @__FILE__
         decays[s] = trajs
     end
     nrun = W_WARM + 6SPC + 2; offs = (0, 27, 54, 82)
-    dirs = ([0.004, 0.0], [0.0, deg2rad(0.3)], [-0.004, 0.0], [0.0, -deg2rad(0.3)])
+    dirs = ([0.002, 0.0], [0.0, deg2rad(3.0)], [-0.002, 0.0], [0.0, -deg2rad(3.0)])
     starts = [walk(zstar .+ d, 10, dt)[o+1:o+nrun, :] for (d, o) in zip(dirs, offs)]
     oncycle = [walk(zstar, 10, dt)[o+1:o+nrun, :] for o in offs]
     # truth check: RMS distance to the cycle per step after warm-up
     dist(X) = [minimum(sum(abs2, (cycle .- X[i:i, :]) ./ std(cycle, dims = 1), dims = 2))^0.5 for i in axes(X, 1)]
     for X in starts
         d = dist(X)[W_WARM+1:end]; e = [sqrt(mean(abs2, d[k*SPC+1:(k+1)*SPC])) for k in 0:4]
-        @printf("  start: per-step ratios %s, rate %.3f\n", join([@sprintf("%.2f", e[k+1] / e[k]) for k in 1:4], " "), (e[5] / e[1])^0.25)
+        @printf("  start: initial RMS deviation %.2f SD, per-step ratios %s, rate %.3f\n", e[1], join([@sprintf("%.2f", e[k+1] / e[k]) for k in 1:4], " "), (e[5] / e[1])^0.25)
     end
     mkpath(joinpath(ROOT, "cache", "truth"))
     serialize(joinpath(ROOT, "cache", "truth", "slip_decays.jls"),

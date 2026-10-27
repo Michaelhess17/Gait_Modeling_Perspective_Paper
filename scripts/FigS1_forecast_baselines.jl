@@ -6,7 +6,7 @@
 # same instantaneous RMSE across the six channels (SSM_baselines.py).
 #
 #   (A) Median error against true lead time (seconds past the last observed
-#       sample). The tuned SSMLearnPy delay map and a rank-10 linear Hankel-DMD
+#       sample). The tuned SSMLearnPy delay map and a rank-70 linear Hankel-DMD (ridge 1e-4, stabilised; companion settings)
 #       are both worse than repeating a phase-aligned mean training cycle.
 #   (B) Paired, per trial, at 2.7 s lead: points above the diagonal are trials
 #       where the SSM is worse than the template.
@@ -35,7 +35,7 @@ ok      = B["ssm_finite"] .== 1
 methods = [
     ("phase template",     B["err_phase_template"], CAT[1], :solid),
     ("repeat last stride", B["err_repeat_stride"],  CAT[3], :solid),
-    ("Hankel-DMD (r = 10)", B["err_hankel_dmd"],    CAT[4], :dash),
+    ("Hankel-DMD (r = 70)", B["err_hankel_dmd"],    CAT[4], :dash),
     ("SSMLearnPy",         B["err_ssm"],            CAT[2], :solid),
 ]
 

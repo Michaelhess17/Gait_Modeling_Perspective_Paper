@@ -101,7 +101,9 @@ Marks used below:
 **¶4. How each model fails.** The failure modes differ in kind. Nonlinear models fail by blowing up, by settling on a wrong period, or by collapsing to a fixed point. DMD fails by decaying slowly, which is benign and predictable because the |λ| ≤ 1 constraint guarantees it.
 
 **¶5. The template caveat.** Better forecasting is not the argument: a phase-indexed mean-cycle template forecasts gait better than every model, which shows that the mean is easy and that forecast error measures the wrong thing.
-- Template 0.17/0.27/0.39 against the spectral-submanifold model 0.28/0.38/0.62 **[have: Fig_forecast_baselines]**.
+- Template 0.17/0.27/0.39 against the spectral-submanifold model 0.28/0.38/0.62 **[have: FigS1]**.
+- Hankel-DMD on the SSM's embedding with the companion paper's settings (rank 70, ridge 1e-4, stabilised): 0.21/0.35/0.46, better than the SSM, worse than the template. Rank 10 had limited it (0.27/0.40/0.54); a 0.6–1.5-s window gets 0.19/0.30/0.42–0.44, tying the template only at ≤ 0.5 s. **[have: FigS1; window test not in the figure]**
+- The companion paper's "DMD beats the template" (0.135 vs 0.314 at ½ stride) is about half template weakness: its template is aligned by a per-channel scale and offset fitted to ⅓ stride; offset-only alignment gives 0.207 / 0.222 (½, 1 stride), DMD still better on the median but in 11 of 17 subjects. Flag to Michael for the companion.
 
 **¶6. Implementation is not the explanation.** These failures persist with careful training: multiple shooting, adjoint gradients, RK4 integration, and train-only selection over wide searches. Common pitfalls make them worse (Box 1).
 - **Box 1 / supplement: neural-ODE pitfalls.** Forward Euler at the sample step spirals outward on oscillations; an output nonlinearity biases the vector field; very short shooting windows; latent encoder/decoder non-identifiability; summed weight decay; selection on minibatch loss. **[new, optional: a controlled degradation test on Stuart–Landau, about 1 h]**
