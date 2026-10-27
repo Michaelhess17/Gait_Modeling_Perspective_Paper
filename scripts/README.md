@@ -54,6 +54,7 @@ Include chain: `floquet_maps_benchmark.jl` (coupled FHN system and return-map es
 - `noise_models.jl`: DMD / ESN / neural ODE relaxation under measurement noise, clean and noisy warm-up
 - `fig6_bias_correction.jl`: the same four estimators on the SLIP section map (Fig 6B–D)
 - `iv_gait_stride.jl`: LS vs instrumental-variable stride maps on human gait (not identifiable from 15-s trials)
+- `iv_gait_operator.jl`: LS vs IV (lagged delay window as instrument) for the companion paper's operator
 
 ## Coupling direction (§2 ¶2, supplement)
 - `coupling_benchmark.jl`, `summarize_coupling.jl`
@@ -61,5 +62,7 @@ Include chain: `floquet_maps_benchmark.jl` (coupled FHN system and return-map es
 ## Ground truth for the Floquet / non-normality figures (§4, Figs 3–4)
 - `systems_truth.jl`: Van der Pol (μ sweep), Stuart–Landau, coupled FHN: multipliers and worst-case growth
   in observed coordinates, from forward-integrated variational equations
+- `slip_decays.jl` (SLIP.jl environment) → `run_slip_offcycle.sh`: SLIP (AOA 73°, k̃ 21, ρ 0.77) decay data and
+  the off-cycle model comparison for Fig 6A; SLIP is a third `sys` in floquet_decays.jl / offcycle_v2.jl
 - `slip_truth.jl`: SLIP step Jacobian and kicked walks; run in SLIP.jl's own environment
   (`julia --project=$HOME/Documents/Julia/SLIP.jl scripts/slip_truth.jl [<kappa> <seed> <nsteps>]`)

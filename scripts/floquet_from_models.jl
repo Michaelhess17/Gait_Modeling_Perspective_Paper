@@ -46,8 +46,11 @@ function vf_true(sys)
     f! = sys == "cfhn" ? cfhn! : sl!
     return u -> (du = similar(u); f!(du, u, nothing, 0.0); du)
 end
-sys_dt(sys) = sys == "cfhn" ? TRUTH.T / SPC_F : 1 / SPC_F
-sys_truth(sys) = sys == "cfhn" ? TRUTH.μ_slow : 0.6
+# SLIP (Fig 6A): data from scripts/slip_decays.jl (SLIP.jl environment), 110 samples per step
+const _SLIPD = Ref{Any}(nothing)
+slipd() = (_SLIPD[] === nothing && (_SLIPD[] = deserialize(cache_path("truth/slip_decays.jls"))); _SLIPD[])
+sys_dt(sys) = sys == "cfhn" ? TRUTH.T / SPC_F : sys == "slip" ? slipd().dt : 1 / SPC_F
+sys_truth(sys) = sys == "cfhn" ? TRUTH.μ_slow : sys == "slip" ? slipd().ρ : 0.6
 
 function sl_simulate(n_cyc; σp, seed)
     dt = sys_dt("sl"); burn = 40

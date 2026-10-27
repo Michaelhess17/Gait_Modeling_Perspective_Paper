@@ -27,6 +27,9 @@ function raw_training(sys, train; seed = 1)
         X = sys == "cfhn" ? simulate(30; σp, seed) : sl_simulate(30; σp, seed)
         μ = mean(X, dims = 1); σ = std(X, dims = 1)
         return [((X .- μ) ./ σ)[1:30*SPC_F, :]], μ, σ
+    elseif sys == "slip"
+        raw = slipd().decays[seed]; allX = reduce(vcat, raw); μ = mean(allX, dims = 1); σ = std(allX, dims = 1)
+        return [(X .- μ) ./ σ for X in raw], μ, σ
     else
         σp = sys == "cfhn" ? SIGMA_P : 0.02 * sqrt(SL_SIGMA)
         cs = cycle_states(sys); sdc = vec(std(cs, dims = 1)); rng = MersenneTwister(seed)
@@ -47,6 +50,7 @@ end
 
 "True off-cycle trajectories (raw units), 4 starting phases."
 function true_starts(sys)
+    sys == "slip" && return slipd().starts
     cs = cycle_states(sys); f! = sys == "cfhn" ? cfhn! : sl!; dt = sys_dt(sys)
     sdc = vec(std(cs, dims = 1)); out = Matrix{Float64}[]
     for ph in (1, 28, 55, 83)

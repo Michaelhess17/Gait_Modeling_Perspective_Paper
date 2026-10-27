@@ -31,6 +31,7 @@ end
 
 "True ON-cycle trajectories from the same 4 starting phases (raw units)."
 function true_oncycle(sys)
+    sys == "slip" && return slipd().oncycle
     cs = cycle_states(sys); f! = sys == "cfhn" ? cfhn! : sl!; dt = sys_dt(sys)
     [permutedims(Array(solve(ODEProblem(f!, copy(cs[ph, :]), (0.0, (W_WARM + 5SPC_F + 2) * dt)), Tsit5();
                              saveat = dt, abstol = 1e-10, reltol = 1e-10))) for ph in (1, 28, 55, 83)]

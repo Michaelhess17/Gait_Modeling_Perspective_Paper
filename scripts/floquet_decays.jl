@@ -34,6 +34,7 @@ const EVAL_FROM = 170
 # Data
 # ═════════════════════════════════════════════════════════════════════════════
 function cycle_states(sys)
+    sys == "slip" && return copy(slipd().cycle)
     f! = sys == "cfhn" ? cfhn! : sl!
     u0 = sys == "cfhn" ? TRUTH.u0 : [sqrt(SL_SIGMA), 0.0]
     T = sys == "cfhn" ? TRUTH.T : 1.0
@@ -49,6 +50,11 @@ function sim_from(sys, u0, n; σp, seed)
 end
 
 function make_decay_data(sys; seed = 1, σm = 0.0)
+    if sys == "slip"
+        trajs = slipd().decays[seed]; rng = MersenneTwister(seed)
+        allX = reduce(vcat, trajs); μ = mean(allX, dims = 1); σ = std(allX, dims = 1)
+        return [(X .- μ) ./ σ .+ σm .* randn(rng, size(X)) for X in trajs]
+    end
     σp = sys == "cfhn" ? SIGMA_P : 0.02 * sqrt(SL_SIGMA)
     cs = cycle_states(sys); sdc = vec(std(cs, dims = 1)); rng = MersenneTwister(seed)
     trajs = [sim_from(sys, cs[rand(rng, 1:size(cs, 1)), :] .+ PERT .* sdc .* randn(rng, length(sdc)), LEN;
