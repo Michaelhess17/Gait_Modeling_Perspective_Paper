@@ -6,8 +6,8 @@
 #   LS  A = C₁C₀⁻¹ (stride k+1 on stride k)
 #   IV  A = C(k+1, k−1) C(k, k−1)⁻¹ (previous stride as the instrument; Fig 6)
 # Printed: full 12-D and rank-r (leading section PCs) spectral radii at 10 phases, and the pooled lag-1/lag-2
-# autocorrelations of the leading PC. Finding (2026-10-27): lag-1 ≈ 0.1–0.3, lag-2 ≈ −0.08 to −0.02, i.e. within
-# the −1/n bias of removing each trial's mean over ~11 strides; the IV ratio is then unstable (0.06 to >40).
+# autocorrelations of the leading PC. Finding (2026-10-27): lag-1 −0.33 to +0.16, lag-2 −0.33 to −0.02, comparable to
+# the −1/n bias of removing each trial's mean over 6–12 strides; the IV ratio is then unstable (0.06 to >40).
 #
 # Usage: julia --project=. scripts/iv_gait_stride.jl
 
