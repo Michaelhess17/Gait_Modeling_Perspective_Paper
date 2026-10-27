@@ -150,23 +150,27 @@ Open: whether to add an LSTM (the gait-signatures model class) **[new]**. A revi
 ## 5. From the mean gait to the origins of variability
 
 **¶1. The mean cycle is easy and uninformative about control.** Most of gait variance lies in the mean cycle, and a template captures it better than any dynamical model. Modelling effort aimed at reproducing the mean is aimed at the part of gait that says least about how it is controlled.
+- 98–99% of the variance of a 15-s trial is the mean cycle (deviations: median 1.4% AB, 4.7% LF) **[have: Fig 5B]**.
+- Whole-trajectory operator measures inherit this. Transient growth of delay-DMD at a ⅓-stride window is 71–75% (log scale) reproduced by the mean cycle alone, group ordering included, because harmonics of the cycle are non-orthogonal over a window shorter than the stride **[have: Fig 5C]**.
 
 **¶2. Variability carries the control signal.** Stride-to-stride deviations, and how they are corrected, reveal the control strategy.
 - Seethapathi & Srinivasan 2019 [cite✓]; Wang & Srinivasan 2014 [cite?]; goal-equivalent manifolds, Dingwell & Cusumano [cite?]; uncontrolled manifold, Scholz & Schöner 1999 [cite?]; minimal intervention, Todorov & Jordan 2002 [cite?].
 
 **¶3. Gait signatures and what they capture.** RNN-based gait signatures distinguish individuals robustly across speeds. Because they are stride-averaged summaries of a flexible model, it is unclear how much they reflect the mean cycle and how much the dynamics of deviations.
 - Winner et al. 2023, 2024 [cite✓]. Lab-internal; frame as complementary.
-- Possible test **[new, optional]**: do signatures survive replacing each subject's data with mean cycle plus shuffled residuals?
+- Test done **[have: Fig 5D]**: the mean cycle identifies people at least as well as the operator signature (75% shape, 69% range-of-motion shares, 69% operator map of the mean cycle alone, against 63% for the operator map of the recorded trials). Identification success is therefore not evidence that a model has captured dynamics. Deviations alone also identify people (52–62%), so individual structure in variability exists. The same test should be run on RNN gait signatures (Winner et al.).
 
 **¶4. Linear models of deviations target variability directly.** A linear operator fitted to delay-embedded kinematics describes how deviations evolve: impulse responses, transient growth, and cross-joint transfer. These are variability-generating structure, not mean shape.
 
 **¶5. Learnability, again.** The quantities that matter (transverse, short-timescale, closed-loop) are exactly the ones passive on-cycle data constrain least. Perturbation-rich experiments and models whose estimation error can be analysed are therefore both needed.
 
-**Figure 5: Transient structure in gait** **[new]**.
-- (A) Gait deviations from the mean cycle.
-- (B) DMD finite-time response (n-stride operator norm, or the impulse response of a perturbed joint) against the eigenvalue prediction.
-- (C) Between-subject differences in transient structure against differences in the mean cycle.
-- Coordinate with the companion paper to avoid duplication; possibly simulated SLIP plus one gait panel.
+**Figure 5: A gait recording, and a model fitted to it, is mostly the mean cycle** **[have: Fig5_gait_variability.jl, fig5_gait_data.jl; companion paper's 299 trials, 42 people]**.
+- (A) One able-bodied trial: strides, mean cycle, deviations.
+- (B) Deviation share of variance against strides per trial: median 1.4% (AB), 1.6% (HF), 4.7% (LF); 3–19 strides per 15-s trial (median 11). The slowest trials (24–43 cm/s, 4–9 strides) reach 15–45%.
+- (C) The companion paper's transient growth (reimplemented, r = 1.000 with its per-trial values) against delay window, real trials vs the trial's own mean cycle repeated with no deviations. At the companion's window (⅓ stride) the mean cycle alone gives 71–75% of log TG, the AB < HF < LF ordering, and r = 0.80 with the real values. With a full-stride window the mean cycle gives exactly TG = 1; what remains is smaller but still graded (log TG 0.05 / 0.10 / 0.20).
+- (D) Identification (the companion paper's split-half protocol, chance 2.4%): mean-cycle shape 75%; range-of-motion shares (6 numbers) 69%; operator map, recorded trials 63% (companion: 64.5%); operator map, mean cycle only 69%; deviation SD profile 62%; deviation cross-joint correlation 52%.
+- Caveats for the caption: deviation features can carry within-stride timing jitter (∝ mean-cycle velocity) and marker artefacts; very slow trials are irregular.
+- **Consequence for the companion paper (flag to Michael):** its transient-growth group differences and its 64.5% identification are largely mean-cycle properties under a ⅓-stride window. The full-stride-window version keeps the group ordering, which is the cleaner claim.
 
 ---
 
@@ -175,14 +179,16 @@ Open: whether to add an LSTM (the gait-signatures model class) **[new]**. A revi
 **¶1. Stability by construction.** Constraining eigenvalues guarantees bounded free runs, so the worst-case linear model is a slowly decaying one, not an exploding or wrong one **[have: self-driving fates]**.
 
 **¶2. One convex answer.** The DMD fit is a least-squares problem with a unique solution for each hyperparameter setting: no seeds, no local minima, and results that vary smoothly with rank and delay. Flexible models give different answers at equal loss.
-- **[new, cheap: from existing caches]** Seed spread of neural ODE/ESN multipliers and periods against DMD across settings. Candidate Figure 6A.
+- Off-cycle relaxation of decay-trained models, same 10 decays for every model **[have: Fig 6A]**. Coupled FHN (truth 0.74; 0.70–0.84 across start phases): DMD 0.80 (0.76–0.82 across start phases); ESN 0.88–0.97 over 4 seeds (0.58–1.15 across start phases); neural ODE 0.61–0.73 over 3 seeds (0.14–1.15). Stuart–Landau (truth 0.58): DMD 0.88, reproducibly wrong at this data size (it needs about 300 decays, Fig 1C); ESN 0.46–0.48; neural ODE 0.49–0.54.
+- Honest reading: on these toy systems the seed spread is moderate. The large reproducibility failure is on gait (Fig 1B). DMD's advantage is that a wrong answer is the same wrong answer every time, and converges visibly with data.
 
 **¶3. Cheap enough to validate.** Fits take seconds, which makes cross-validation, bootstrap over trials and subjects, and wide hyperparameter sweeps routine. A single neural-ODE fit takes hours **[have: timing from runs]**.
 
 **¶4. Estimator bias is analysable and correctable.** In linear models we know how estimation errors bias the result and can correct it. Least squares treats the predictors X as noise-free and the targets Y as noisy; with measurement noise this pulls eigenvalues inward. Forward–backward and total-least-squares DMD remove that bias, and optimized/bagged DMD adds uncertainty estimates.
 - Dawson et al. 2016 [cite?]; Hemati et al. 2017 [cite?]; Askham & Kutz 2018 [cite?]; Sashidhar & Kutz 2022 [cite?].
 - Honest framing from our tests: with rank-truncated Hankel matrices and decay data, plain least squares was already nearly unbiased up to 20% measurement noise on coupled FHN. TLS/FB did not improve and slightly slowed relaxation **[have: dmd_noise_variants.jl, noise_models.jl]**.
-- **[new]** We still need a regime where least-squares bias is visible and the correction works (e.g., on-cycle data, low rank, high noise). Otherwise, frame it as "can be diagnosed and corrected", not "we corrected it".
+- **Demonstrated on the SLIP section map (Fig 6B–D) [have: fig6_bias_correction.jl].** Least squares attenuates: open loop 0.95 → 0.89 / 0.76 / 0.48 at noise 0.25 / 0.5 / 1× the stride-to-stride SD, and more strides do not help (0.87–0.89 from 30 to 2000 strides at 0.25×). Instrumental variables (previous stride as the instrument, no knowledge of the noise needed) recover the truth at every noise level: 0.945–0.948 open loop, and 0.86–0.87 against 0.872 with feedback.
+- **The correction must match the noise model.** Forward–backward DMD returns |λ| = 1.000 exactly, at every noise level and even without noise: on a stationary, noise-driven process the backward fit has the same lagged statistics as the forward one, so FB reports neutral stability. TLS works only where its assumptions hold (open loop 0.91–0.96; feedback 0.90 at no noise, 0.61 at 1×). Unperturbed walking is a stationary, noise-driven process, which explains why TLS/FB did not help in our Hankel-DMD tests.
 
 **¶5. Nonlinear models are biased by construction, and corrections are rare.** Neural ODEs, LSTMs and reservoirs trained by one-step or shooting loss inherit the same errors-in-variables bias, with no closed-form handle on it. Explicit corrections exist mostly for sparse regression.
 - Simultaneous denoising for SINDy, Kaheman, Brunton & Kutz 2020 [cite✓]; neural ODEs with an implicit denoising network, Goyal & Benner 2023 [cite✓]; time-reversal-symmetry penalty, Huh et al. 2020 NeurIPS [cite✓] (closest analogue to forward–backward consistency).
@@ -200,10 +206,11 @@ Open: whether to add an LSTM (the gait-signatures model class) **[new]**. A revi
 - No passive-data model recovers coupling direction **[have]**.
 - The claim is about structure and analysability, not universal accuracy.
 
-**Figure 6: Linear-model affordances** **[mostly new]**.
-- (A) Reproducibility: seed and setting spread.
-- (B) Bias diagnosis and correction demo.
-- (C) Residual-verified spectrum on gait or SLIP.
+**Figure 6: Linear-model affordances** **[have: Fig6_linear_affordances.jl]**.
+- (A) Off-cycle relaxation per fit and per start phase: DMD (one fit) against ESN and neural-ODE seeds.
+- (B, C) SLIP section-map ρ̂ against measurement noise: LS, FB, TLS, IV; open loop and with speed feedback.
+- (D) Against record length at noise 0.25×: LS converges to the wrong value, IV to the truth.
+- Optional later: a residual-verified (ResDMD) spectrum on gait or SLIP.
 
 ---
 
