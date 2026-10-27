@@ -32,4 +32,4 @@ Legend(g[2, 1:2], vcat([[LineElement(color = c), MarkerElement(color = c, marker
                        [LineElement(color = C_TRUTH, linestyle = :dash, linewidth = 1.8)]),
        vcat([l for (_, l, _) in MODELS], ["truth"]); orientation = :horizontal, tellwidth = false)
 colgap!(g, 12); rowgap!(g, 6)
-save_paper(fig, "Fig_offcycle")
+save_paper(fig, "FigS4_offcycle")

@@ -8,32 +8,40 @@ Section and figure numbers refer to ../OUTLINE.md.
 - `common.jl`: data loading, `cache_path`, Hankel/DMD helpers (included by most scripts)
 - `paper_style.jl`: CairoMakie theme, palette, `save_paper` (writes figures/*.pdf|svg|png)
 
+## Main figures (numbered as in OUTLINE.md)
+- `Fig1_learnability.jl` (+ `fig1_coverage_data.jl`): data coverage and the cycle-to-cycle map, equal-loss
+  gait neural ODEs, DMD relaxation vs transient data. Panel D (matched-data comparison) still to come.
+- `Fig2_self_driving.jl`: free-running benchmark
+- `Fig3_floquet_maps.jl` (+ `fig3_slip_maps.jl`, data from `slip_truth.jl`): data-driven Floquet maps of SLIP
+- `Fig4_nonnormality.jl` (data from `systems_truth.jl`, `slip_truth.jl`): transient growth beyond eigenvalues
+- Supplement: `FigS1_forecast_baselines.jl`, `FigS2_node_gait.jl`, `FigS3_floquet_models.jl` (needs rebuilding
+  from tuned/decay results), `FigS4_offcycle.jl`
+
 ## Self-driving benchmark (§3, Fig 2)
 - `self_driving_benchmark.jl`: systems, regimes, neural ODE / ESN / DMD fits, free-run fates
 - `dmd_tuning.jl`, `esn_tuning.jl`: train-only hyperparameter selection for DMD and ESN
 - `ssm_self_driving.py`: SSMLearnPy fits on the same data (pixi environment)
-- `Fig_self_driving.jl`: figure
+- `Fig2_self_driving.jl`: figure
 
 ## Forecast baselines (§3 ¶5, supplement)
 - `ssm_fit_gait.py`: SSMLearnPy fits to gait (writes cache/fig7_ssmlearnpy_primary.npz)
 - `SSM_baselines.py`: SSM vs mean-cycle template / repeat stride / Hankel-DMD
 - `export_forecast_examples.py`: example traces for the figure
-- `Fig_forecast_baselines.jl`: figure
+- `FigS1_forecast_baselines.jl`: figure
 
 ## Learnability (§2, Fig 1)
 - `gait_overparam.jl` (+ `floquet_from_field.jl`): equal-loss neural-ODE fits to gait
-- `Fig_node_gait.jl`: figure panel
+- `FigS2_node_gait.jl`: full gait neural-ODE figure (supplement; panels E–F reused in Fig 1B)
 - `dmd_delay_sweep.jl`: DMD off-cycle relaxation vs delay window, rank and number of decays
-- `Fig_dmd_datasize.jl`: figure panel (relaxation rate vs transient data)
 - `offcycle_relaxation.jl` → `offcycle_v2.jl`: off-cycle relaxation test, phase-independent scoring
-- `Fig_offcycle.jl`: figure panel (10-decay comparison; to be redone at matched larger data)
+- `FigS4_offcycle.jl`: 10-decay off-cycle comparison (supplement; to be redone at matched larger data)
 
 ## Floquet multipliers from models (§4 ¶3)
 Include chain: `floquet_maps_benchmark.jl` (coupled FHN system and return-map estimators)
 → `floquet_from_models.jl` (chain-of-Jacobians readout, truth validation)
 → `floquet_tuned.jl` (wide tuning, single trajectory) → `floquet_decays.jl` (decay-trained).
 - `run_floquet_tuned.sh`, `run_floquet_decays.sh`: drivers for the full runs
-- `Fig_floquet_models.jl`: figure; **still reads the early untuned runs and needs rebuilding from
+- `FigS3_floquet_models.jl`: figure; **still reads the early untuned runs and needs rebuilding from
   tuned_*/decays_* results**
 
 ## Noise and estimator bias (§6 ¶4)
@@ -43,6 +51,8 @@ Include chain: `floquet_maps_benchmark.jl` (coupled FHN system and return-map es
 ## Coupling direction (§2 ¶2, supplement)
 - `coupling_benchmark.jl`, `summarize_coupling.jl`
 
-## Ground truth for the new Floquet / non-normality figures (§4, Figs 3–4; in progress)
-- `systems_truth.jl`: Van der Pol, Stuart–Landau and SLIP (via ~/Documents/Julia/SLIP.jl) multipliers
-  and non-normality in observed coordinates
+## Ground truth for the Floquet / non-normality figures (§4, Figs 3–4)
+- `systems_truth.jl`: Van der Pol (μ sweep), Stuart–Landau, coupled FHN: multipliers and worst-case growth
+  in observed coordinates, from forward-integrated variational equations
+- `slip_truth.jl`: SLIP step Jacobian and kicked walks; run in SLIP.jl's own environment
+  (`julia --project=$HOME/Documents/Julia/SLIP.jl scripts/slip_truth.jl [<kappa> <seed> <nsteps>]`)

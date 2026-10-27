@@ -177,7 +177,7 @@ plabel!(gbot[1, 2], "E"); plabel!(gbot[1, 3], "F")
 
 colgap!(gtop, 14); colgap!(gbot, 12); rowgap!(gtop, 2)
 rowsize!(fig.layout, 1, Relative(0.55))
-save_paper(fig, "Fig_node_gait" * SUFFIX)
+save_paper(fig, "FigS2_node_gait" * SUFFIX)
 
 for t in TRIALS, r in runs[t]
     @printf("trial %3d seed %d | loss %.4f | %-11s P/Pstride %.2f |μ| %.3f | err@1s %.2f @3s %.2f\n",

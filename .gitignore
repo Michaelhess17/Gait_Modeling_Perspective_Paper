@@ -23,3 +23,6 @@ archive/
 
 # run logs
 logs/
+
+# large regenerable data (scripts/slip_truth.jl)
+cache/truth/slip_walks/

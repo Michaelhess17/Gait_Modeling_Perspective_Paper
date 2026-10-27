@@ -107,7 +107,8 @@ for (c, (sys, title, (i, j), (li, lj))) in enumerate(SYSTEMS)
         limits!(ax, lims...)
         if !isempty(mr)
             counts = [count(x -> x.fate == f, mr) for f in FATES]
-            txt = join(["$(n) $(f)" for (n, f) in zip(counts, FATES) if n > 0], ", ")
+            parts = ["$(n) $(f)" for (n, f) in zip(counts, FATES) if n > 0]
+            txt = length(parts) > 2 ? join(parts[1:2], ", ") * ",\n" * join(parts[3:end], ", ") : join(parts, ", ")
             text!(ax, 0.03, 0.97; space = :relative, align = (:left, :top), fontsize = 6,
                   text = txt, color = C_TRUTH)
         end
@@ -189,7 +190,7 @@ Label(gB[1, 2, TopLeft()], "C"; fontsize = 10, font = :bold, padding = (0, 6, 2,
 colsize!(gB, 1, Relative(0.48)); colgap!(gB, 16)
 
 rowsize!(fig.layout, 1, Relative(0.70))
-save_paper(fig, "Fig_self_driving")
+save_paper(fig, "Fig2_self_driving")
 
 println("\nOutcome counts (all systems, both regimes):")
 for (m, _) in vcat(MODELS, [("template", nothing)])

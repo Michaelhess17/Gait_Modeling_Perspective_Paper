@@ -90,7 +90,7 @@ for (k, (sys, regime, title)) in enumerate(CASES)
     k == 1 && text!(ax, 4.5, 1.03; text = "marginal", fontsize = 6.5, color = C_REF, align = (:right, :bottom))
 end
 colgap!(g, 14); rowgap!(g, 12)
-save_paper(fig, "Fig_floquet_models")
+save_paper(fig, "FigS3_floquet_models")
 
 # numbers for the text
 for (sys, regime, title) in CASES

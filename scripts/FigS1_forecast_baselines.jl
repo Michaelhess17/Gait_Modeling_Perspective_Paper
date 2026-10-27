@@ -111,7 +111,7 @@ rowgap!(gC, 2)
 colgap!(gC, 10)
 rowgap!(fig.layout, 8)
 
-save_paper(fig, "Fig_forecast_baselines")
+save_paper(fig, "FigS1_forecast_baselines")
 
 # numbers quoted in the text
 for (name, M, _, _) in methods
