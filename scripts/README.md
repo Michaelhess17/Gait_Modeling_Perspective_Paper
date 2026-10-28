@@ -18,8 +18,8 @@ Section and figure numbers refer to ../OUTLINE.md.
 - `Fig5_gait_variability.jl` (+ `fig5_gait_data.jl`; human data from ../Gait_NonNormality_Paper3, path in
   `GAIT_P3`): mean cycle vs deviations, mean-cycle-only surrogate of the companion paper's transient growth,
   identification by feature family
-- `Fig6_linear_affordances.jl` (offv2_{cfhn,slip}_* caches): per-start, per-seed off-cycle relaxation on coupled
-  FHN and SLIP
+- `Fig6_linear_affordances.jl` (offv2_{cfhn,slip}_* caches, `slip_rotation.jl`): per-start, per-seed off-cycle
+  relaxation on coupled FHN and SLIP; SLIP step multiplier (modulus and rotation) read from the same runs
 - Supplement: `FigS5_identification.jl` (from the Fig 5 cache), `FigS1_forecast_baselines.jl`, `FigS2_node_gait.jl`, `FigS3_floquet_models.jl` (needs rebuilding
   from tuned/decay results), `FigS4_offcycle.jl`
 
@@ -65,5 +65,7 @@ Include chain: `floquet_maps_benchmark.jl` (coupled FHN system and return-map es
   in observed coordinates, from forward-integrated variational equations
 - `slip_decays.jl` (SLIP.jl environment) → `run_slip_offcycle.sh`: SLIP (AOA 73°, k̃ 21, ρ 0.77) decay data and
   the off-cycle model comparison for Fig 6A; SLIP is a third `sys` in floquet_decays.jl / offcycle_v2.jl
+- `slip_rotation_truth.jl` (SLIP.jl environment) → `slip_rotation.jl`: 30-step true off-cycle runs, and the
+  section-map multiplier of truth and every model (Fig 6C)
 - `slip_truth.jl`: SLIP step Jacobian and kicked walks; run in SLIP.jl's own environment
   (`julia --project=$HOME/Documents/Julia/SLIP.jl scripts/slip_truth.jl [<kappa> <seed> <nsteps>]`)
