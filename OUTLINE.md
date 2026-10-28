@@ -207,6 +207,14 @@ Open: whether to add an LSTM (the gait-signatures model class) **[new]**. A revi
 - Physics-informed DMD imposes structure (Baddoo et al. 2023 [cite?]).
 - DMD with control can use perturbation inputs (Proctor et al. 2016 [cite?]).
 - **[new, optional]** ResDMD residuals on gait or SLIP eigenvalues.
+- **Imposing the limit cycle's Koopman structure (exploratory) [have: floquet_lifted.jl; SLIP, 10 decays of 3 steps unless noted].** Theory: a stable limit cycle has Koopman eigenvalues on the lattice {ikω + mμ} (Mezić 2017; Mauroy & Mezić; Nakao & Mezić 2020 [cite?]), so a linear model of the state needs exact harmonics plus the same Floquet sideband next to every harmonic. Plain Hankel-DMD fits each eigenvalue separately and blends harmonic with sideband (0.038 cycles per step apart here). Tests:
+  - Longer decays (30 steps, with or without stride kicks): harmonics lock, but no clean sideband, spurious near-neutral modes, plateau stays 0.17–0.60. Record length alone is not the fix.
+  - ResDMD residuals on held-out decays trust the harmonics (including the neutral fundamental) and cannot separate the near-correct sideband (0.763 ∠ 13.9°, residual 0.050) from the blended one (0.827 ∠ 7.6°, 0.052); residual filtering leaves the plateau.
+  - Phase-indexed monodromy (cycle subtracted, period-ahead linear map at every phase): unstable from 3-step decays; 0.77 ∠ 11° from 30-step kick-free decays.
+  - **Lattice-constrained fit (one ω and one μ for all harmonics, variable projection): 0.771 ∠ 14.6° from the 3-step decays (truth 0.769 ∠ 13.6°)**, where plain DMD has no single answer. Its first-order forecast model (one shared mode shape) captures only 72% of the decays' amplitude.
+  - Neural phase–isostable model (linear dynamics in (θ, ψ), neural decoder that vanishes on the cycle), μ frozen at the lattice estimate: returns to its cycle (plateau 0.03–0.08 against DMD's 0.28–0.49), the same answer for 3 seeds (±0.01), 4-step rates 0.71–0.80 (truth 0.68–0.90). With μ free it fits better but drifts to 0.84 ∠ 20°.
+  - Stride kicks (process noise) make the phase diffuse and bias the lattice fit (0.95 ∠ 3°): for noise-driven gait the phase must be re-estimated per stride (Revzen & Guckenheimer's Phaser).
+  - Reading for the paper: structure that theory says a limit cycle has can be imposed on a linear model, and then even short transients identify the multiplier. This is a linear affordance (¶1, ¶4), not a property of plain DMD.
 
 **¶7. Limits of linear models.**
 - Linearity is not a free lunch. DMD needs transient-rich data and long enough delay windows. Its settings matter on Stuart–Landau. Under measurement noise the ESN was the more reliable model for Stuart–Landau relaxation (median 0.56–0.66 against DMD's 0.8–1.0, truth 0.58) **[have]**.

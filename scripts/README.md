@@ -67,5 +67,8 @@ Include chain: `floquet_maps_benchmark.jl` (coupled FHN system and return-map es
   the off-cycle model comparison for Fig 6A; SLIP is a third `sys` in floquet_decays.jl / offcycle_v2.jl
 - `slip_rotation_truth.jl` (SLIP.jl environment) → `slip_rotation.jl`: 30-step true off-cycle runs, and the
   section-map multiplier of truth and every model (Fig 6C)
+- `slip_long_decays.jl` (SLIP.jl environment) → `floquet_lifted.jl <C|D|A|B|E>`: representing the limit cycle's
+  Floquet structure in linear models (long decays, ResDMD residuals, phase-indexed monodromy, lattice-constrained
+  fit, neural phase–isostable model); exploratory, §6 ¶6–7
 - `slip_truth.jl`: SLIP step Jacobian and kicked walks; run in SLIP.jl's own environment
   (`julia --project=$HOME/Documents/Julia/SLIP.jl scripts/slip_truth.jl [<kappa> <seed> <nsteps>]`)
