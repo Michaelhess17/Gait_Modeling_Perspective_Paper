@@ -22,8 +22,9 @@ Section and figure numbers refer to ../OUTLINE.md.
   relaxation on coupled FHN and SLIP; SLIP step multiplier (modulus and rotation) read from the same runs
 - Supplement: `FigS5_identification.jl` (from the Fig 5 cache), `FigS1_forecast_baselines.jl`, `FigS2_node_gait.jl`, `FigS3_floquet_models.jl` (needs rebuilding
   from tuned/decay results), `FigS4_offcycle.jl`
-- `FigS6_lattice.jl` (`figS6_slip_data.jl` → cache/figS6/slip.jls; `gait_lattice.jl` → cache/fig5/gait_lattice.jls):
-  how the lattice-constrained model works, and how it compares on SLIP and gait
+- `FigS6_lattice.jl` (`figS6_slip_data.jl` → cache/figS6/slip.jls; `gait_lattice.jl` → cache/fig5/gait_lattice.jls;
+  `gait_lattice_null.jl` → cache/fig5/gait_lattice_null.jls): how the lattice-constrained model works, and how it
+  compares on SLIP and gait
 
 ## Self-driving benchmark (§3, Fig 2)
 - `self_driving_benchmark.jl`: systems, regimes, neural ODE / ESN / DMD fits, free-run fates
@@ -75,6 +76,7 @@ Include chain: `floquet_maps_benchmark.jl` (coupled FHN system and return-map es
 - `slip_kicked_walks.jl` (SLIP.jl environment) → `gait_lattice.jl` (`-t 12`): lattice-constrained Floquet model on
   noise-driven, stride-normalised data, μ chosen on the person's other trials; kicked SLIP walks (validation) and
   the 299 gait trials (multiplier, forecast skill against the mean stride, a deviation DMD and the companion DMD,
-  stride-matched check, mode shape)
+  stride-matched check, mode shape); `gait_lattice_null.jl` (`-t 12`, after it): stride-shuffle null for the skill
+  of μ chosen on the scored strides, which needs no selection across trials at other speeds
 - `slip_truth.jl`: SLIP step Jacobian and kicked walks; run in SLIP.jl's own environment
   (`julia --project=$HOME/Documents/Julia/SLIP.jl scripts/slip_truth.jl [<kappa> <seed> <nsteps>]`)

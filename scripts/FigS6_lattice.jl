@@ -19,7 +19,8 @@
 #   assumed modulus (best rotation at each), median and IQR over trials: kicked SLIP walks have a minimum near the
 #   truth; gait profiles are flat at the mean stride's error, so the per-person multipliers (text) are not identified.
 #   (F) Lattice skill by horizon with the multiplier chosen out of trial (solid) or on the scored strides themselves
-#   (dashed): on gait the apparent skill is mostly the selection.
+#   (dashed), and the same on stride-shuffled copies of each trial (dotted; scripts/gait_lattice_null.jl): on gait
+#   about half of the on-test skill is selection, and the rest does not carry over to the person's other trials.
 
 using Pkg; Pkg.activate(dirname(@__DIR__); io = devnull)
 include("paper_style.jl")
@@ -29,6 +30,7 @@ const ROOT = dirname(@__DIR__)
 plabel!(pos, L) = Label(pos[1, 1, TopLeft()], L; fontsize = 10, font = :bold, padding = (0, 6, 2, 0), halign = :right)
 const S = deserialize(joinpath(ROOT, "cache", "figS6", "slip.jls"))
 const G = deserialize(joinpath(ROOT, "cache", "fig5", "gait_lattice.jls"))
+const NUL = deserialize(joinpath(ROOT, "cache", "fig5", "gait_lattice_null.jls"))
 const C_LAT, C_NN = CAT[5], CAT[4]
 
 fig = Figure(size = (COL2, 128MM))
@@ -143,21 +145,24 @@ end
 plabel!(bot[1, 2], "E")
 
 # ── F: skill by horizon, chosen out of trial vs on the scored strides ────────
-aF = Axis(bot[1, 3]; ylabel = "R², lattice model", title = "Apparent skill on gait is selection",
+aF = Axis(bot[1, 3]; ylabel = "R², lattice model", title = "Gait skill does not transfer",
           xticks = (1:3, ["rest of\nstride", "+1\nstride", "+2\nstrides"]), limits = (0.6, 3.4, -0.15, 1.0))
 hlines!(aF, 0.0; color = C_REF, linewidth = 0.6)
 for (lab, _, H, col) in GLINES
-    H = filter(!isnothing, H)
+    H = filter(!isnothing, H); sh = lab == "SLIP walks" ? NUL.slip : NUL.gait[lab]
     hon = [median(h.lat[b] for h in H) for b in 1:3]; ins = [median(h.insample[b] for h in H) for b in 1:3]
+    lines!(aF, 1:3, [median(v[b] for v in sh) for b in 1:3]; color = col, linewidth = 0.9, linestyle = :dot)
     lines!(aF, 1:3, ins; color = col, linewidth = 0.8, linestyle = :dash)
     lines!(aF, 1:3, hon; color = col, linewidth = 1.2); scatter!(aF, 1:3, hon; color = col, markersize = 4)
 end
 text!(aF, 2.05, 0.66; text = "SLIP walks", fontsize = 6.5, align = (:left, :bottom))
-text!(aF, 1.8, 0.2; text = "gait (colours as E)", fontsize = 6.5, align = (:center, :bottom))
-lines!(aF, [0.7, 0.85], [0.5, 0.5]; color = C_REF, linewidth = 1.2)
-text!(aF, 0.9, 0.5; text = "μ out of trial", fontsize = 6.5, color = C_REF, align = (:left, :center))
-lines!(aF, [0.7, 0.85], [0.42, 0.42]; color = C_REF, linewidth = 0.8, linestyle = :dash)
-text!(aF, 0.9, 0.42; text = "μ on scored strides", fontsize = 6.5, color = C_REF, align = (:left, :center))
+text!(aF, 0.66, 0.19; text = "gait\n(colours as E)", fontsize = 6.5, align = (:left, :bottom))
+for (k, (ls, lw, lab)) in enumerate(((:solid, 1.2, "μ out of trial"), (:dash, 0.8, "μ on scored strides"),
+                                     (:dot, 0.9, "same, shuffled order")))
+    y = 0.97 - 0.08 * (k - 1)
+    lines!(aF, [1.7, 1.85], [y, y]; color = C_REF, linewidth = lw, linestyle = ls)
+    text!(aF, 1.9, y; text = lab, fontsize = 6.5, color = C_REF, align = (:left, :center))
+end
 plabel!(bot[1, 3], "F")
 
 colsize!(top, 1, Relative(0.34)); colsize!(top, 3, Relative(0.3)); colgap!(top, 16)
