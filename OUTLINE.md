@@ -182,8 +182,11 @@ Open: whether to add an LSTM (the gait-signatures model class) **[new]**. A revi
 **¶1. Stability by construction.** Constraining eigenvalues guarantees bounded free runs, so the worst-case linear model is a slowly decaying one, not an exploding or wrong one **[have: self-driving fates]**.
 
 **¶2. One convex answer.** The DMD fit is a least-squares problem with a unique solution for each hyperparameter setting: no seeds, no local minima, and results that vary smoothly with rank and delay. Flexible models give different answers at equal loss.
-- Off-cycle relaxation of decay-trained models, same 10 decays for every model **[have: Fig 6A]**. Coupled FHN (truth 0.74; 0.70–0.84 across start phases): DMD 0.80 (0.76–0.82 across start phases); ESN 0.88–0.97 over 4 seeds (0.58–1.15 across start phases); neural ODE 0.61–0.73 over 3 seeds (0.14–1.15). Stuart–Landau (truth 0.58): DMD 0.88, reproducibly wrong at this data size (it needs about 300 decays, Fig 1C); ESN 0.46–0.48; neural ODE 0.49–0.54.
-- Honest reading: on these toy systems the seed spread is moderate. The large reproducibility failure is on gait (Fig 1B). DMD's advantage is that a wrong answer is the same wrong answer every time, and converges visibly with data.
+- Off-cycle relaxation of decay-trained models, same 10 decays for every model, from 4 off-cycle starts **[have: Fig 6A]**. Mean |model − truth| over starts (range over seeds):
+  - Coupled FHN (truth 0.74 per cycle; 0.70–0.84 across starts): DMD 0.07 (0.76–0.82; flat, slightly reversed start dependence); ESN 0.16–0.28 over 4 seeds (0.58–1.15; reverses the start ordering); neural ODE 0.15–0.32 over 3 seeds (0.14–1.15).
+  - SLIP, centre-of-mass state (truth 0.84 per step; 0.68–0.90 across starts): DMD 0.04 (0.78–0.87); ESN 0.04–0.17 (seed medians 0.74–0.92; seed 4 reverses the start ordering); neural ODE 0.046–0.055 over 3 seeds (0.76–0.95, medians 0.84–0.87). Every model misses the fastest-decaying start (truth 0.68; every fit 0.78–0.81 except one ESN seed at 0.92).
+  - Stuart–Landau (dropped from the figure; truth 0.58): DMD 0.88, reproducibly wrong at this data size (it needs about 300 decays, Fig 1C); ESN 0.46–0.48; neural ODE 0.49–0.54.
+- Honest reading: DMD is clearly the most accurate on coupled FHN and matches the best seeds on SLIP (ESN seed 3 0.039, neural ODE 0.046 against DMD 0.035), with no seed spread. The neural ODE is as accurate on SLIP and consistent across seeds there, but erratic on coupled FHN; the ESN's answer depends on the seed on both. On these toy systems the seed spread is moderate. The large reproducibility failure is on gait (Fig 1B). DMD's advantage is that a wrong answer is the same wrong answer every time, and converges visibly with data.
 
 **¶3. Cheap enough to validate.** Fits take seconds, which makes cross-validation, bootstrap over trials and subjects, and wide hyperparameter sweeps routine. A single neural-ODE fit takes hours **[have: timing from runs]**.
 
@@ -211,7 +214,7 @@ Open: whether to add an LSTM (the gait-signatures model class) **[new]**. A revi
 - The claim is about structure and analysability, not universal accuracy.
 
 **Figure 6: Linear-model affordances** **[have: Fig6_linear_affordances.jl]**.
-- (A) Coupled FHN off-cycle relaxation per fit and per start phase: DMD (one fit) against ESN and neural-ODE seeds. Stuart–Landau dropped (too simple; DMD reproducibly wrong at 10 decays). A second, gait-like system (SLIP or Van der Pol) would need new ESN/NODE fits.
+- (A) Off-cycle relaxation per start and per fit, coupled FHN and SLIP (centre of mass) side by side: DMD (one fit) against ESN and neural-ODE seeds, truth per start. Stuart–Landau dropped (too simple; DMD reproducibly wrong at 10 decays).
 - (B, C) SLIP section-map ρ̂ against measurement noise: LS, FB, TLS, IV; open loop and with speed feedback.
 - (D) Against record length at noise 0.25×: LS converges to the wrong value, IV to the truth.
 - Optional later: a residual-verified (ResDMD) spectrum on gait or SLIP.
@@ -245,7 +248,7 @@ Open: whether to add an LSTM (the gait-signatures model class) **[new]**. A revi
 ## Analysis to-do list (priority order)
 
 1. **Fig 3/4 systems.** SLIP (SLIP.jl stable walking, known multipliers) and Van der Pol: Floquet maps, piecewise maps, monodromy transient growth. **[new; about 1–2 days]**
-2. **Fig 6A reproducibility.** From existing caches. **[new; about half a day]**
+2. **Fig 6A reproducibility.** Coupled FHN and SLIP. **[done]**
 3. **Matched-data off-cycle comparison** (ESN and neural ODE at 100 decays), Fig 1D. **[new; neural ODE takes hours]**
 4. **Bias-correction demo**, Fig 6B. **[new]**
 5. **Gait transient structure**, Fig 5. **[new; coordinate with companion paper]**

@@ -17,8 +17,9 @@ Section and figure numbers refer to ../OUTLINE.md.
 - `Fig5_gait_variability.jl` (+ `fig5_gait_data.jl`; human data from ../Gait_NonNormality_Paper3, path in
   `GAIT_P3`): mean cycle vs deviations, mean-cycle-only surrogate of the companion paper's transient growth,
   identification by feature family
-- `Fig6_linear_affordances.jl` (+ `fig6_bias_correction.jl`, off-cycle caches): seed reproducibility; LS / FB /
-  TLS / instrumental-variable section maps of SLIP under measurement noise
+- `Fig6_linear_affordances.jl` (+ `fig6_bias_correction.jl`, offv2_{cfhn,slip}_* caches): per-start, per-seed
+  off-cycle relaxation on coupled FHN and SLIP; LS / FB / TLS / instrumental-variable section maps of SLIP under
+  measurement noise
 - Supplement: `FigS5_identification.jl` (from the Fig 5 cache), `FigS1_forecast_baselines.jl`, `FigS2_node_gait.jl`, `FigS3_floquet_models.jl` (needs rebuilding
   from tuned/decay results), `FigS4_offcycle.jl`
 
