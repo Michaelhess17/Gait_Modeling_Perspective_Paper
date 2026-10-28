@@ -70,5 +70,8 @@ Include chain: `floquet_maps_benchmark.jl` (coupled FHN system and return-map es
 - `slip_long_decays.jl` (SLIP.jl environment) → `floquet_lifted.jl <C|D|A|B|E>`: representing the limit cycle's
   Floquet structure in linear models (long decays, ResDMD residuals, phase-indexed monodromy, lattice-constrained
   fit, neural phase–isostable model); exploratory, §6 ¶6–7
+- `slip_kicked_walks.jl` (SLIP.jl environment) → `gait_lattice.jl` (`-t 12`): lattice-constrained Floquet model on
+  noise-driven, stride-normalised data, μ chosen by held-out forward prediction; kicked SLIP walks (validation) and
+  the 299 gait trials (multiplier, forecast skill against the mean cycle and the companion DMD, mode shape)
 - `slip_truth.jl`: SLIP step Jacobian and kicked walks; run in SLIP.jl's own environment
   (`julia --project=$HOME/Documents/Julia/SLIP.jl scripts/slip_truth.jl [<kappa> <seed> <nsteps>]`)
