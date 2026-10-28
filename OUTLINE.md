@@ -123,6 +123,7 @@ Open: whether to add an LSTM (the gait-signatures model class) **[new]**. A revi
 - Revzen & Guckenheimer [cite?]; Riva et al. 2013 [cite✓].
 - Our maps: phase map 0.59 [0.50–0.68] at 30 cycles against a truth of 0.69; the 8-sector piecewise map gives 0.41 and collapses to about 0 at noise ≥ 1× **[have: Fig_floquet_maps, on coupled FHN]**.
 - **[new]** Redo on SLIP (hybrid; SLIP.jl `paper_stability.jl` has self-stable walking with known multipliers) and Van der Pol (relaxation oscillator), replacing Stuart–Landau and coupled FHN as the showcase systems.
+- **The section-map bias is correctable, because the map is linear [have: Fig 3B, C].** Least squares treats the current stride as exact, so measurement noise pulls ρ̂ toward stability, and more strides do not help (open loop 0.95 → 0.88 / 0.75 / 0.47 at noise 0.25 / 0.5 / 1×, 250 steps). Instrumental variables, with the previous stride as the instrument and no knowledge of the noise, recover the truth: 0.94 / 0.95 / 0.97 open loop, 0.87 / 0.88 / 0.91 with speed feedback (truth 0.872). Below about 30 strides the instrument is weak and IV scatters and overshoots.
 
 **¶3. Models that forecast well can still get the multipliers wrong.** Read out of fitted models, Floquet multipliers vary widely across model classes, seeds and hyperparameters, even among models that forecast similarly.
 - Neural ODE on coupled FHN 0.01 against a truth of 0.69; ESN 0.64 [0.38–0.86]; DMD 0.71 [0.66–0.79] **[have: floquet_tuned.jl]**.
@@ -139,7 +140,7 @@ Open: whether to add an LSTM (the gait-signatures model class) **[new]**. A revi
 **Figure 3: Data-driven Floquet maps on SLIP / Van der Pol** **[new; reuse the floquet_maps_benchmark.jl pipeline]**.
 - (A) Return map of SLIP apex state (or Van der Pol section) at realistic and large cycle counts.
 - (B) Multiplier estimate against record length.
-- (C) Against noise.
+- (C) Against noise, with the instrumental-variable section map as the correction.
 - (D) Piecewise-linear sector maps: bias grows with the number of sectors.
 
 **Figure 4: Eigenvalues are not the whole story** **[new]**.
@@ -182,7 +183,7 @@ Open: whether to add an LSTM (the gait-signatures model class) **[new]**. A revi
 **¶1. Stability by construction.** Constraining eigenvalues guarantees bounded free runs, so the worst-case linear model is a slowly decaying one, not an exploding or wrong one **[have: self-driving fates]**.
 
 **¶2. One convex answer.** The DMD fit is a least-squares problem with a unique solution for each hyperparameter setting: no seeds, no local minima, and results that vary smoothly with rank and delay. Flexible models give different answers at equal loss.
-- Off-cycle relaxation of decay-trained models, same 10 decays for every model, from 4 off-cycle starts **[have: Fig 6A]**. Mean |model − truth| over starts (range over seeds):
+- Off-cycle relaxation of decay-trained models, same 10 decays for every model, from 4 off-cycle starts **[have: Fig 6]**. Mean |model − truth| over starts (range over seeds):
   - Coupled FHN (truth 0.74 per cycle; 0.70–0.84 across starts): DMD 0.07 (0.76–0.82; flat, slightly reversed start dependence); ESN 0.16–0.28 over 4 seeds (0.58–1.15; reverses the start ordering); neural ODE 0.15–0.32 over 3 seeds (0.14–1.15).
   - SLIP, centre-of-mass state (truth 0.84 per step; 0.68–0.90 across starts): DMD 0.04 (0.78–0.87); ESN 0.04–0.17 (seed medians 0.74–0.92; seed 4 reverses the start ordering); neural ODE 0.046–0.055 over 3 seeds (0.76–0.95, medians 0.84–0.87). Every model misses the fastest-decaying start (truth 0.68; every fit 0.78–0.81 except one ESN seed at 0.92).
   - Stuart–Landau (dropped from the figure; truth 0.58): DMD 0.88, reproducibly wrong at this data size (it needs about 300 decays, Fig 1C); ESN 0.46–0.48; neural ODE 0.49–0.54.
@@ -190,12 +191,10 @@ Open: whether to add an LSTM (the gait-signatures model class) **[new]**. A revi
 
 **¶3. Cheap enough to validate.** Fits take seconds, which makes cross-validation, bootstrap over trials and subjects, and wide hyperparameter sweeps routine. A single neural-ODE fit takes hours **[have: timing from runs]**.
 
-**¶4. Estimator bias is analysable and correctable.** In linear models we know how estimation errors bias the result and can correct it. Least squares treats the predictors X as noise-free and the targets Y as noisy; with measurement noise this pulls eigenvalues inward. Forward–backward and total-least-squares DMD remove that bias, and optimized/bagged DMD adds uncertainty estimates.
+**¶4. Estimator bias is analysable and correctable.** In linear models we know how estimation errors bias the result and can correct it. Least squares treats the predictors X as noise-free and the targets Y as noisy; with measurement noise this pulls eigenvalues inward. Instrumental variables remove the bias on the SLIP return map (Fig 3B, C). Forward–backward and total-least-squares DMD are the corrections usually recommended, and optimized/bagged DMD adds uncertainty estimates.
 - Dawson et al. 2016 [cite?]; Hemati et al. 2017 [cite?]; Askham & Kutz 2018 [cite?]; Sashidhar & Kutz 2022 [cite?].
-- Honest framing from our tests: with rank-truncated Hankel matrices and decay data, plain least squares was already nearly unbiased up to 20% measurement noise on coupled FHN. TLS/FB did not improve and slightly slowed relaxation **[have: dmd_noise_variants.jl, noise_models.jl]**.
-- **Demonstrated on the SLIP section map (Fig 6B–D) [have: fig6_bias_correction.jl].** Least squares attenuates: open loop 0.95 → 0.89 / 0.76 / 0.48 at noise 0.25 / 0.5 / 1× the stride-to-stride SD, and more strides do not help (0.87–0.89 from 30 to 2000 strides at 0.25×). Instrumental variables (previous stride as the instrument, no knowledge of the noise needed) recover the truth at every noise level: 0.945–0.948 open loop, and 0.86–0.87 against 0.872 with feedback.
-- **The correction must match the noise model.** Forward–backward DMD returns |λ| = 1.000 exactly, at every noise level and even without noise: on a stationary, noise-driven process the backward fit has the same lagged statistics as the forward one, so FB reports neutral stability. TLS works only where its assumptions hold (open loop 0.91–0.96; feedback 0.90 at no noise, 0.61 at 1×). Unperturbed walking is a stationary, noise-driven process, which explains why TLS/FB did not help in our Hankel-DMD tests.
-- **On real gait (companion operator) [have: iv_gait_operator.jl].** Calibration on each trial's mean cycle plus white noise of known size: least squares underestimates log TG by 0.06 / 0.11 / 0.16 at noise 0.5 / 1 / 2× the deviation SD; IV recovers it to 1× (−0.007, +0.04) and overshoots at 2× (+0.27). On recorded trials IV gives LOWER TG than least squares, the opposite of measurement-noise attenuation: ⅓-stride window AB 0.27 → 0.21, HF 0.38 → 0.32, LF 0.60 → 0.52 (mean-cycle floor 0.20 / 0.29 / 0.42); full-stride window 0.046 → 0.019, 0.097 → 0.058, 0.18 → 0.135. Independent of the gap (10 or 30 samples). Reading: the companion's TG is not deflated by measurement noise (no case for TLS there). Part of the deviation-driven TG comes from structure that does not persist beyond window + gap (short-correlated noise or genuinely short-lived deviations; the data cannot tell which). The group ordering survives IV.
+- **The correction must match how the data were generated [have: fig6_bias_correction.jl; one or two sentences].** On stationary, noise-driven data (unperturbed walking), forward–backward eigenvalues come in reciprocal pairs λ, 1/λ (exactly in the long-record limit), so FB cannot report a decay. On the SLIP map it returns |λ| = 1.000 at every noise level, even without noise, while keeping the rotation per stride (48.4° against 48.6°). TLS is only partly right (open loop 0.91–0.96; with feedback 0.90 → 0.61 as noise rises). FB is designed for deterministic transients observed with noise, not for walking.
+- Honest framing for Hankel-DMD: with rank-truncated Hankel matrices, plain least squares was already nearly unbiased up to 20% measurement noise on coupled FHN decays **[have: dmd_noise_variants.jl, noise_models.jl]**. On real gait, IV on the companion operator changed transient growth little and lowered it rather than raising it (⅓-stride window AB 0.27 → 0.21, LF 0.60 → 0.52; ordering unchanged) **[have: iv_gait_operator.jl]**. So the companion's transient growth is not deflated by measurement noise. For gait the correction is a safeguard, not a result, and it is not a comparison point in the paper.
 
 **¶5. Nonlinear models are biased by construction, and corrections are rare.** Neural ODEs, LSTMs and reservoirs trained by one-step or shooting loss inherit the same errors-in-variables bias, with no closed-form handle on it. Explicit corrections exist mostly for sparse regression.
 - Simultaneous denoising for SINDy, Kaheman, Brunton & Kutz 2020 [cite✓]; neural ODEs with an implicit denoising network, Goyal & Benner 2023 [cite✓]; time-reversal-symmetry penalty, Huh et al. 2020 NeurIPS [cite✓] (closest analogue to forward–backward consistency).
@@ -213,10 +212,9 @@ Open: whether to add an LSTM (the gait-signatures model class) **[new]**. A revi
 - No passive-data model recovers coupling direction **[have]**.
 - The claim is about structure and analysability, not universal accuracy.
 
-**Figure 6: Linear-model affordances** **[have: Fig6_linear_affordances.jl]**.
-- (A) Off-cycle relaxation per start and per fit, coupled FHN and SLIP (centre of mass) side by side: DMD (one fit) against ESN and neural-ODE seeds, truth per start. Stuart–Landau dropped (too simple; DMD reproducibly wrong at 10 decays).
-- (B, C) SLIP section-map ρ̂ against measurement noise: LS, FB, TLS, IV; open loop and with speed feedback.
-- (D) Against record length at noise 0.25×: LS converges to the wrong value, IV to the truth.
+**Figure 6: One convex answer** **[have: Fig6_linear_affordances.jl]**.
+- (A, B) Off-cycle relaxation per start and per fit, coupled FHN and SLIP (centre of mass): DMD (one fit) against ESN and neural-ODE seeds, truth per start. Stuart–Landau dropped (too simple; DMD reproducibly wrong at 10 decays).
+- The SLIP bias correction moved to Fig 3B, C; FB/TLS stay in the text only.
 - Optional later: a residual-verified (ResDMD) spectrum on gait or SLIP.
 
 ---
@@ -248,9 +246,9 @@ Open: whether to add an LSTM (the gait-signatures model class) **[new]**. A revi
 ## Analysis to-do list (priority order)
 
 1. **Fig 3/4 systems.** SLIP (SLIP.jl stable walking, known multipliers) and Van der Pol: Floquet maps, piecewise maps, monodromy transient growth. **[new; about 1–2 days]**
-2. **Fig 6A reproducibility.** Coupled FHN and SLIP. **[done]**
+2. **Fig 6 reproducibility.** Coupled FHN and SLIP. **[done]**
 3. **Matched-data off-cycle comparison** (ESN and neural ODE at 100 decays), Fig 1D. **[new; neural ODE takes hours]**
-4. **Bias-correction demo**, Fig 6B. **[new]**
+4. **Bias-correction demo.** IV in Fig 3B, C. **[done]**
 5. **Gait transient structure**, Fig 5. **[new; coordinate with companion paper]**
 6. **Optional:** LSTM in the benchmark; neural-ODE pitfalls test; gait-signature residual-shuffle test; ResDMD on gait.
 7. **References:** verify every [cite?]; build references.bib.

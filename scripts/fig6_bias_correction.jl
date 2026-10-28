@@ -1,5 +1,6 @@
 #!/usr/bin/env julia
-# Bias of a linear return-map fit under measurement noise, and its correction (Fig 6; OUTLINE.md §6 ¶4).
+# Bias of a linear return-map fit under measurement noise, and its correction (OUTLINE.md §6 ¶4; text only,
+# formerly Fig 6B–D; the IV line is in Fig 3B, C via fig3_slip_maps.jl).
 #
 # Same data and noise model as Fig 3 (scripts/fig3_slip_maps.jl): kicked SLIP walks (stride-level kicks to
 # (y, θ) at VLO = process noise), VLO-section states observed with i.i.d. measurement noise of SD ratio × the

@@ -12,14 +12,14 @@ Section and figure numbers refer to ../OUTLINE.md.
 - `Fig1_learnability.jl` (+ `fig1_coverage_data.jl`): data coverage and the cycle-to-cycle map, equal-loss
   gait neural ODEs, DMD relaxation vs transient data. Panel D (matched-data comparison) still to come.
 - `Fig2_self_driving.jl`: free-running benchmark
-- `Fig3_floquet_maps.jl` (+ `fig3_slip_maps.jl`, data from `slip_truth.jl`): data-driven Floquet maps of SLIP
+- `Fig3_floquet_maps.jl` (+ `fig3_slip_maps.jl`, data from `slip_truth.jl`): data-driven Floquet maps of SLIP,
+  including the instrumental-variable section map
 - `Fig4_nonnormality.jl` (data from `systems_truth.jl`, `slip_truth.jl`): transient growth beyond eigenvalues
 - `Fig5_gait_variability.jl` (+ `fig5_gait_data.jl`; human data from ../Gait_NonNormality_Paper3, path in
   `GAIT_P3`): mean cycle vs deviations, mean-cycle-only surrogate of the companion paper's transient growth,
   identification by feature family
-- `Fig6_linear_affordances.jl` (+ `fig6_bias_correction.jl`, offv2_{cfhn,slip}_* caches): per-start, per-seed
-  off-cycle relaxation on coupled FHN and SLIP; LS / FB / TLS / instrumental-variable section maps of SLIP under
-  measurement noise
+- `Fig6_linear_affordances.jl` (offv2_{cfhn,slip}_* caches): per-start, per-seed off-cycle relaxation on coupled
+  FHN and SLIP
 - Supplement: `FigS5_identification.jl` (from the Fig 5 cache), `FigS1_forecast_baselines.jl`, `FigS2_node_gait.jl`, `FigS3_floquet_models.jl` (needs rebuilding
   from tuned/decay results), `FigS4_offcycle.jl`
 
@@ -53,7 +53,7 @@ Include chain: `floquet_maps_benchmark.jl` (coupled FHN system and return-map es
 ## Noise and estimator bias (§6 ¶4)
 - `dmd_noise_variants.jl`: least squares vs forward–backward vs TLS DMD under measurement noise
 - `noise_models.jl`: DMD / ESN / neural ODE relaxation under measurement noise, clean and noisy warm-up
-- `fig6_bias_correction.jl`: the same four estimators on the SLIP section map (Fig 6B–D)
+- `fig6_bias_correction.jl`: LS / FB / TLS / IV on the SLIP section map (text only; formerly Fig 6B–D)
 - `iv_gait_stride.jl`: LS vs instrumental-variable stride maps on human gait (not identifiable from 15-s trials)
 - `iv_gait_operator.jl`: LS vs IV (lagged delay window as instrument) for the companion paper's operator
 

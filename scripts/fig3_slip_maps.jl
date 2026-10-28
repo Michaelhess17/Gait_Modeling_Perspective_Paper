@@ -13,6 +13,8 @@
 #   section     affine least-squares map of the phase-0 state from one step to the next
 #   phase       the same at 10 phases across the step, median (Revzen & Guckenheimer 2012 phase-indexed maps)
 #   piecewise K K affine sector-to-sector maps (K − 1 within the step, one across the kick), composed
+#   section_iv  the section map by instrumental variables: the state one step earlier as the instrument.
+#               Consistent under white measurement noise and the stride kicks, with no knowledge of the noise.
 #
 # Usage: julia --project=. scripts/fig3_slip_maps.jl     (writes cache/fig3/slip_maps.jls)
 
@@ -46,6 +48,11 @@ function est_section(S; φ = 1)
     # one basis for both ends (same phase): all phase-φ samples
     Xall, V = pca2(S[:, φ, :]); Xa = Xall[1:end-1, :]; Xb = Xall[2:end, :]
     specrad(fitmap(Xa, Xb))
+end
+function section_map_iv(S; φ = 1)
+    X, _ = pca2(S[:, φ, :]); Z = hcat(X, ones(size(X, 1)))
+    Zm, Z0, Xp = Z[1:end-2, :], Z[2:end-1, :], X[3:end, :]   # instrument w_{k−1}, regressor w_k, target w_{k+1}
+    ((Zm' * Z0) \ (Zm' * Xp))'[:, 1:2]
 end
 est_phase(S) = median([est_section(S; φ) for φ in 1:5:NPH])
 function est_piecewise(S, K)
@@ -81,6 +88,9 @@ if abspath(PROGRAM_FILE) == @__FILE__
             ev = eigvals(section_map(S))
             push!(rows, (; kappa = w.kappa, seed = w.seed, N, noise = r, truth, method = "section", K = 0, ρ = maximum(abs, ev),
                            ev = ComplexF64.(ev)))
+            ev = eigvals(section_map_iv(S))
+            push!(rows, (; kappa = w.kappa, seed = w.seed, N, noise = r, truth, method = "section_iv", K = 0, ρ = maximum(abs, ev),
+                           ev = ComplexF64.(ev)))
             push!(rows, (; kappa = w.kappa, seed = w.seed, N, noise = r, truth, method = "phase", K = 0, ρ = est_phase(S),
                            ev = ComplexF64[]))
             for K in KS
@@ -93,7 +103,7 @@ if abspath(PROGRAM_FILE) == @__FILE__
     truths = Dict(κ => ComplexF64.(eigvals(deserialize(joinpath(WALKDIR, "walk_k$(κ)_s1.jls")).J)) for κ in (0.0, 0.1))
     serialize(joinpath(ROOT, "cache", "fig3", "slip_maps.jls"), (; rows, truths))
     med(sel) = (v = [x.ρ for x in rows if sel(x)]; isempty(v) ? NaN : median(v))
-    for κ in (0.0, 0.1), m in ("section", "phase", "piecewise")
+    for κ in (0.0, 0.1), m in ("section", "section_iv", "phase", "piecewise")
         tr = med(x -> x.kappa == κ); K = m == "piecewise" ? 8 : 0
         @printf("κ=%.1f %-9s%s truth %.3f | noise 0: N=30 %.3f N=250 %.3f N=2000 %.3f | N=250: noise .25 %.3f .5 %.3f 1 %.3f\n",
                 κ, m, K > 0 ? "(K=8)" : "     ", [x.truth for x in rows if x.kappa == κ][1],
