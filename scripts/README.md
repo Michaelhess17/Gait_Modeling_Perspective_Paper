@@ -78,5 +78,7 @@ Include chain: `floquet_maps_benchmark.jl` (coupled FHN system and return-map es
   the 299 gait trials (multiplier, forecast skill against the mean stride, a deviation DMD and the companion DMD,
   stride-matched check, mode shape); `gait_lattice_null.jl` (`-t 12`, after it): stride-shuffle null for the skill
   of μ chosen on the scored strides, which needs no selection across trials at other speeds
+- `gait_overparam_validation.jl`: training loss against held-out rollout error for the gait neural ODEs (reads the
+  gait_overparam caches); which fit each criterion would pick
 - `slip_truth.jl`: SLIP step Jacobian and kicked walks; run in SLIP.jl's own environment
   (`julia --project=$HOME/Documents/Julia/SLIP.jl scripts/slip_truth.jl [<kappa> <seed> <nsteps>]`)

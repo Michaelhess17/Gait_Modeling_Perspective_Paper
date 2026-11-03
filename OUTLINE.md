@@ -24,8 +24,8 @@ Structure (restructured 2026-11-03; the mapping from the previous outline is at 
 
 1. Gait dynamics are usually summarised by asymptotic stability (Floquet multipliers), and data-driven dynamical models (neural ODEs, reservoir computers, sparse regression, spectral-submanifold reductions) are increasingly fitted to walking.
 2. But walking never reaches the asymptotic regime: it is perturbed every stride and corrected by noisy feedback, so what governs it is the transient response over the next few strides, which eigenvalues of non-normal return maps miss and which short, noisy records estimate poorly.
-3. Studying transients asks specific things of a model: autonomous rollouts that keep the right cycle and relax correctly from off-cycle states, one answer per data set, predictable behaviour under measurement noise, and modest data needs. Forecast accuracy on unperturbed walking is not among them: it is dominated by the mean cycle, which says little about the dynamics around it.
-4. Against these requirements, on realistic oscillators, SLIP and human gait, expressive models often blow up, settle on the wrong attractor or depend on the seed. Hankel-DMD, linear in delay coordinates, keeps the right cycle in 92% of cases, gives one convex answer, has an analysable and correctable bias and fits in seconds, with known limits (a neutral cycle amplitude, a need for transients).
+3. Studying transients asks specific things of a model. Above all it must predict: run on its own from the current state, it should forecast held-out strides, on the cycle and after perturbations, with skill beyond reference forecasts that need no dynamics (the mean cycle, the last stride). It should also keep the right cycle over long rollouts, give one answer per data set, behave predictably under measurement noise, and work from modest data.
+4. Against these requirements, on realistic oscillators, SLIP and human gait, dynamical models forecast far beyond the reference where the data hold predictable dynamics, and barely beyond it on noise-driven data. Expressive models are sometimes the best forecasters but often blow up, settle on the wrong attractor or depend on the seed. Hankel-DMD, linear in delay coordinates, forecasts consistently (close to the best model in most cases and never far below the reference), keeps the right cycle in 92% of cases, gives one convex answer, has an analysable and correctable bias and fits in seconds, with known limits (a neutral cycle amplitude, a need for transients).
 5. No model recovers transverse dynamics that passive on-cycle data do not contain, and 15-s gait trials do not identify stride-to-stride dynamics, so we recommend perturbation experiments and reporting finite-time response with its uncertainty.
 
 ---
@@ -51,9 +51,9 @@ Structure (restructured 2026-11-03; the mapping from the previous outline is at 
 - Neural models: RNN gait signatures, Winner et al. 2023 PLOS Comput Biol [cite✓], extended 2024 Sci Rep [cite✓]; modulated neural ODEs evaluated on human walking trajectories (MoNODE, NeurIPS 2023) [cite✓].
 - Koopman/DMD in gait: Fujii et al. 2019 Sci Rep (DMD for coordinative structures) [cite✓]; Koopman model of whole-body angular momentum with periodic regularization (NSF PAR 10613388) [cite✓, get the full reference].
 
-**¶5. The gap.** The stability tradition and most model-based work aim at the same quantity, asymptotic stability, in a system that never reaches the asymptotic regime. And there is little systematic evidence on whether expressive data-driven models recover the dynamics of walking, as opposed to reproducing its average shape. Methods that work convincingly on simulated benchmarks and fluid flows are often assumed to transfer.
+**¶5. The gap.** The stability tradition and most model-based work aim at the same quantity, asymptotic stability, in a system that never reaches the asymptotic regime. And there is little systematic evidence on whether expressive data-driven models predict walking beyond its average cycle, or recover the dynamics around it. Methods that work convincingly on simulated benchmarks and fluid flows are often assumed to transfer.
 
-**¶6. This perspective.** We (i) argue that for a gait perturbed and noisily corrected every stride, the right target is the transient, finite-time response, not asymptotic stability (§2); (ii) derive what a data-driven model must do to study that response, and why gait data make it hard (§3); (iii) test expressive and linear models against these requirements and find that linear models in Hankel (delay) coordinates meet them best (§4); and (iv) show what linear models reveal on real gait and where 15-s trials stop every model (§5).
+**¶6. This perspective.** We (i) argue that for a gait perturbed and noisily corrected every stride, the right target is the transient, finite-time response, not asymptotic stability (§2); (ii) derive what a data-driven model must do to study that response, above all predict it, and why gait data make it hard (§3); (iii) test expressive and linear models against these requirements and find that linear models in Hankel (delay) coordinates meet them best (§4); and (iv) show what linear models reveal on real gait and where 15-s trials stop every model (§5).
 
 ---
 
@@ -76,7 +76,7 @@ Structure (restructured 2026-11-03; the mapping from the previous outline is at 
 - Our maps: phase map 0.59 [0.50–0.68] at 30 cycles against a truth of 0.69; the 8-sector piecewise map gives 0.41 and collapses to about 0 at noise ≥ 1× **[have: on coupled FHN]**. Fig 2 now uses kicked SLIP walks **[have: Fig3_floquet_maps.jl, fig3_slip_maps.jl]**: replace these numbers with the SLIP ones from cache/fig3/slip_maps.jls.
 - **The section-map bias is correctable, because the map is linear [have: Fig 2B, C].** Least squares treats the current stride as exact, so measurement noise pulls ρ̂ toward stability, and more strides do not help (open loop 0.95 → 0.88 / 0.75 / 0.47 at noise 0.25 / 0.5 / 1×, 250 steps). Instrumental variables, with the previous stride as the instrument and no knowledge of the noise, recover the truth: 0.94 / 0.95 / 0.97 open loop, 0.87 / 0.88 / 0.91 with speed feedback (truth 0.872). Below about 30 strides the instrument is weak and IV scatters and overshoots.
 
-**¶6. A better target: finite-time, stride-scale response.** We propose characterizing gait by its finite-time response operators: how deviations at one stride propagate, amplify and redistribute across joints over the next few strides. These are quantities that linear models expose directly.
+**¶6. A better target: finite-time, stride-scale response.** We propose characterizing gait by its finite-time response operators: how deviations at one stride propagate, amplify and redistribute across joints over the next few strides. These are quantities that linear models expose directly, and a model that predicts the next few strides from the current state, including after a perturbation, is a model of exactly this response.
 
 **Figure 1: Eigenvalues are not the whole story** **[have: Fig4_nonnormality.jl; ground truth only, systems_truth.jl and slip_truth.jl: Van der Pol μ sweep, Stuart–Landau, coupled FHN, SLIP open loop and with speed feedback]**.
 - (A) Transverse distance from the cycle after a perturbation against time, with the multiplier's prediction |μ|^τ.
@@ -94,15 +94,17 @@ Structure (restructured 2026-11-03; the mapping from the previous outline is at 
 
 ## 3. What a model of gait transients must do
 
-**¶1. From target to requirements.** Studying transients means querying a model off the cycle and letting it run on its own for a few strides. That asks five things of it, none of which a forecast score tests:
-- **(R1) Faithful autonomous dynamics.** Released from data, it keeps the right cycle (no blow-up, wrong period or collapse) and relaxes correctly from off-cycle states, so it has learned the vector field around the cycle, not only a one-step map.
-- **(R2) One answer.** The same data give the same model and the same stability readout across seeds and nearby hyperparameters, so differences between people are not fitting noise.
-- **(R3) Predictable behaviour under measurement noise.** Its estimates are insensitive to kinematic noise, or biased in a way that can be analysed and corrected.
-- **(R4) Modest data needs.** It works from tens of strides and a few channels, and shows when the data cannot support an answer.
-- **(R5) Cheap and inspectable.** It fits fast enough for cross-validation and bootstrap, with spectra and modes that can be checked.
-- **Forecast accuracy is not a requirement.** Forecasting unperturbed gait is mostly forecasting the mean cycle: the cycle's shape, not the dynamics around it. A phase-aligned mean-cycle template, which has no state and cannot be started off the cycle or perturbed, gives the reference level for that part. It is a baseline, not a competing model: it answers none of R1–R5, so the dynamical models are not compared with it on forecast error.
-  - Reference levels, held-out forecast error at 0.7 / 2.7 / 4.7 s lead **[have: FigS1]**: mean-cycle template 0.17/0.27/0.39; spectral-submanifold model 0.28/0.38/0.62; Hankel-DMD on the SSM's embedding with the companion paper's settings (rank 70, ridge 1e-4, stabilised) 0.21/0.35/0.46 (rank 10: 0.27/0.40/0.54; a 0.6–1.5-s window: 0.19/0.30/0.42–0.44) **[window test not in the figure]**.
-  - The companion paper's "DMD beats the template" (0.135 vs 0.314 at ½ stride) is about half template weakness: its template is aligned by a per-channel scale and offset fitted to ⅓ stride; offset-only alignment gives 0.207 / 0.222 (½, 1 stride), DMD still better on the median but in 11 of 17 subjects. Flag to Michael for the companion.
+**¶1. From target to requirements.** A model is useful for gait to the extent that it predicts: from the current state, what the next strides will do, including after a perturbation. Studying transients adds requirements that short-horizon prediction alone does not guarantee. Six in all:
+- **(R1) Predictive skill in autonomous rollouts.** Run from the current state with no data fed back, the model forecasts held-out data over the next few strides, on the cycle and after perturbations.
+  - Skill is measured against reference forecasts that need no dynamics, the mean cycle at the current phase and the last stride repeated, as weather forecasts are scored against climatology and persistence (skill = 1 − model error / reference error). The references are not candidate models (they have no state and cannot be started off the cycle); they define zero skill.
+  - Skill is reported on the full signal and on the deviations from the mean cycle, because the deviations are where the dynamics are.
+  - Errors are validation errors: computed on held-out data (later cycles of a trial; held-out decays or realisations), by autonomous rollout, not one-step (teacher-forced) error, which can stay small for models whose rollouts fail **[new: one-step against rollout validation, to-do 7]**.
+  - Reference levels on gait, held-out error at 0.7 / 2.7 / 4.7 s lead **[have: FigS1]**: mean cycle 0.17/0.27/0.39; last stride repeated 0.20/0.30/0.42; Hankel-DMD (rank 70, ridge 1e-4, stabilised; the companion paper's settings) 0.21/0.35/0.46 (rank 10: 0.27/0.40/0.54; a 0.6–1.5-s window: 0.19/0.30/0.42–0.44 **[window test not in the figure]**); spectral-submanifold model 0.28/0.38/0.62.
+- **(R2) Faithful long-run behaviour.** Over long rollouts it keeps the right cycle (no blow-up, wrong period or collapse) and returns to it after a perturbation: evidence that it learned the vector field around the cycle. Short-horizon skill does not guarantee this (§4 ¶3).
+- **(R3) One answer.** The same data give the same model and the same stability readout across seeds and nearby hyperparameters, so differences between people are not fitting noise.
+- **(R4) Predictable behaviour under measurement noise.** Its estimates are insensitive to kinematic noise, or biased in a way that can be analysed and corrected.
+- **(R5) Modest data needs.** It works from tens of strides and a few channels, and shows when the data cannot support an answer.
+- **(R6) Cheap and inspectable.** It fits fast enough for cross-validation and bootstrap, with spectra and modes that can be checked.
 
 Why these requirements are hard to meet on gait (learnability):
 
@@ -115,17 +117,18 @@ Why these requirements are hard to meet on gait (learnability):
 - Standing balance needs deliberate perturbations to separate plant and feedback (van der Kooij, Pasma, Schouten and colleagues; closed-loop system identification) [cite✓].
 - Our coupling test: no model, linear or nonlinear, recovers coupling direction from passive data **[have: coupling_benchmark.jl, cache/coupling]**. One sentence plus a supplement pointer.
 
-**¶4. Feedback hides the transverse dynamics (R1, R4).** Because the controller suppresses deviations, walking data stay close to the limit cycle. The transverse directions that encode stability and control are excited only weakly, by intrinsic noise.
+**¶4. Feedback hides the transverse dynamics (R1, R2, R5).** Because the controller suppresses deviations, walking data stay close to the limit cycle. The transverse directions that encode stability and control are excited only weakly, by intrinsic noise.
 - The mean cycle explains about 94% of gait variance **[have]**.
 
-**¶5. Short, hybrid, partially observed, nonstationary (R3, R4).** Gait datasets add further obstacles: tens of strides per trial, a few kinematic channels standing in for a high-dimensional neuromechanical state, discrete contact events, and slow drift in speed and posture.
+**¶5. Short, hybrid, partially observed, nonstationary (R1, R4, R5).** Gait datasets add further obstacles: tens of strides per trial, a few kinematic channels standing in for a high-dimensional neuromechanical state, discrete contact events, and slow drift in speed and posture.
 - Deviations are 1.4–4.7% of a trial's variance (median by group, Fig 6B), so measurement noise is not small against the signal a transient analysis uses.
+- On passive, noise-driven data the forecast skill any model can reach beyond the mean cycle is therefore small: the deviations are barely predictable from the current state (§5 ¶4). Prediction is tested best where the data hold predictable deviations, after perturbations.
 
-**¶6. Consequence: on-cycle data identify the cycle, not the dynamics around it (R1, R2).** Many models fit on-cycle data equally well yet disagree about everything off the cycle, so training loss cannot select among them.
+**¶6. Consequence: on-cycle data identify the cycle, not the dynamics around it (R2, R3).** Many models fit on-cycle data equally well yet disagree about everything off the cycle, so training loss cannot select among them.
 - Gait neural-ODE fits reach equal loss with learned periods from 0.7× to 21× the stride and different multipliers **[have: Fig_node_gait, gait_overparam.jl]**.
 - Floquet multipliers read from models trained on on-cycle data are unconstrained: Stuart–Landau neural ODE ≈ 1.0 and DMD ≈ 0.99 against a truth of 0.60 **[have: floquet_tuned.jl]**.
 
-**¶7. Transient-rich data make the problem learnable, given enough of it (R4).** When training data contain decays from perturbed states, transverse relaxation becomes identifiable. Even then, recovering it takes many transients and a delay window long enough to span the decay. Nothing is free.
+**¶7. Transient-rich data make the problem learnable, given enough of it (R1, R5).** When training data contain decays from perturbed states, transverse relaxation becomes identifiable. Even then, recovering it takes many transients and a delay window long enough to span the decay. Nothing is free.
 - Hankel-DMD relaxation rate converges to the truth as decays increase (coupled FHN from about 30 decays; Stuart–Landau needs at least 1.5-cycle windows and about 300 decays) **[have: Fig_dmd_datasize, dmd_delay_sweep.jl]**.
 - Experimental implication: perturbation paradigms (treadmill perturbations, split-belt, tripping) are the gait analogue of start-up transients.
 
@@ -139,26 +142,32 @@ Why these requirements are hard to meet on gait (learnability):
 
 ## 4. Candidate models against the requirements: linear models in Hankel space fit best
 
-**¶1. Candidates and test design.** Expressive models: neural ODE, ESN, LSTM?, spectral-submanifold model (SSMLearn). Linear: Hankel-DMD, a linear operator on delay (Hankel) coordinates. Each is tuned on training data only with wide hyperparameter searches, and tested free-running: one-step or teacher-forced accuracy hides exactly the failures R1 is about.
+**¶1. Candidates and test design.** Expressive models: neural ODE, ESN, LSTM?, spectral-submanifold model (SSMLearn). Linear: Hankel-DMD, a linear operator on delay (Hankel) coordinates. Each is tuned on training data only with wide hyperparameter searches and tested by autonomous rollouts on held-out data. DMD and ESN hyperparameters are themselves chosen by rollout validation: fit on all but the last two training cycles, free-run, and pick by the error over those two cycles.
 - Systems: coupled FitzHugh–Nagumo, coupled Van der Pol, Stuart–Landau, SLIP and human gait.
 - Regimes: varied data length and noise level.
 - **[have: self_driving_benchmark.jl, dmd_tuning.jl, esn_tuning.jl]**
 
-**¶2. R1, autonomous rollouts.** Hankel-DMD sustains the correct cycle in 92% of system–regime cells and never blows up. The expressive models succeed in 42–62% and blow up or settle on the wrong attractor in 12–19% **[have: Fig_self_driving]**.
+**¶2. R1, predictive skill.** Where the data hold predictable dynamics, the dynamical models forecast far beyond the reference; where they are noise-driven, every model's skill is near zero, and what separates the models is whether they stay near the reference or fail.
+- First held-out cycle, skill against the mean cycle (Fig 4C) **[have: Fig2_self_driving.jl printout]**. Long regime (30 clean training cycles): DMD +0.59 to +1.00 and ESN +0.68 to +1.00 on all four systems; neural ODE −3.5 to −0.08; SSM −73 to +0.40. Realistic regime (12 cycles, 1% measurement noise, process noise): DMD −0.43 to +0.17 on all nine cells; the ESN beats DMD on 5 of 9 (up to +0.42 on a gait trial) but falls below −1 on 3 (down to −13); neural ODE negative on all nine; SSM −4.5 to 0.
+- Gait, the 5 s after a 10-s training window (Fig S1): DMD skill −0.24 / −0.30 / −0.18 at 0.7 / 2.7 / 4.7 s against the mean cycle; SSM −0.65 / −0.41 / −0.59. With noise-driven deviations, no model forecasts beyond the mean cycle here.
+- Off the cycle: relaxation of decay-trained models, the same 10 decays for every model, from 4 off-cycle starts, over the first 4 cycles **[have: Fig 5]**. Mean |model − truth| over starts (range over seeds):
+  - Coupled FHN (truth 0.74 per cycle; 0.70–0.84 across starts): DMD 0.07 (0.76–0.82; flat, slightly reversed start dependence); ESN 0.16–0.28 over 4 seeds (0.58–1.15; reverses the start ordering); neural ODE 0.15–0.32 over 3 seeds (0.14–1.15).
+  - SLIP, centre-of-mass state (truth 0.84 per step; 0.68–0.90 across starts): DMD 0.04 (0.78–0.87); ESN 0.04–0.17 (seed medians 0.74–0.92; seed 4 reverses the start ordering); neural ODE 0.046–0.055 over 3 seeds (0.76–0.95, medians 0.84–0.87). Every model misses the fastest-decaying start (truth 0.68; every fit 0.78–0.81 except one ESN seed at 0.92).
+  - Stuart–Landau (dropped from the figure; truth 0.58): DMD 0.88, reproducibly wrong at this data size (it needs about 300 decays, Fig 3C); ESN 0.46–0.48; neural ODE 0.49–0.54.
+- Deviations one stride ahead, out of trial (Fig S6D): kicked SLIP walks R² 0.53 for the lattice model and 0.25 for a delay DMD on the deviations, against the mean stride; human gait about 0 for every linear model (§5 ¶4).
+- Reading: prediction is where a model earns its use, and testing it needs data with predictable deviations, clean or perturbed transients. On passive, noise-driven data the attainable skill is small for any model, so there the comparison is about reliability: DMD is never far from the reference, while the ESN is sometimes the best forecaster and sometimes catastrophic.
+
+**¶3. R2, long-run behaviour.** Hankel-DMD sustains the correct cycle in 92% of system–regime cells and never blows up. The expressive models succeed in 42–62% and blow up or settle on the wrong attractor in 12–19% **[have: Fig_self_driving]**.
 - The failure modes differ in kind. Expressive models fail by blowing up, by settling on a wrong period, or by collapsing to a fixed point. DMD fails by decaying slowly, which is benign and predictable.
 - Stability by construction: constraining eigenvalues (|λ| ≤ 1) guarantees bounded free runs, so the worst-case linear model is a slowly decaying one, not an exploding or wrong one **[have: self-driving fates]**.
-
-**¶3. R1, off-cycle relaxation.** Off-cycle relaxation of decay-trained models, same 10 decays for every model, from 4 off-cycle starts **[have: Fig 5]**. Mean |model − truth| over starts (range over seeds):
-- Coupled FHN (truth 0.74 per cycle; 0.70–0.84 across starts): DMD 0.07 (0.76–0.82; flat, slightly reversed start dependence); ESN 0.16–0.28 over 4 seeds (0.58–1.15; reverses the start ordering); neural ODE 0.15–0.32 over 3 seeds (0.14–1.15).
-- SLIP, centre-of-mass state (truth 0.84 per step; 0.68–0.90 across starts): DMD 0.04 (0.78–0.87); ESN 0.04–0.17 (seed medians 0.74–0.92; seed 4 reverses the start ordering); neural ODE 0.046–0.055 over 3 seeds (0.76–0.95, medians 0.84–0.87). Every model misses the fastest-decaying start (truth 0.68; every fit 0.78–0.81 except one ESN seed at 0.92).
-- Stuart–Landau (dropped from the figure; truth 0.58): DMD 0.88, reproducibly wrong at this data size (it needs about 300 decays, Fig 3C); ESN 0.46–0.48; neural ODE 0.49–0.54.
+- Short-horizon skill does not guarantee the right attractor. Among neural ODEs fitted to one able-bodied trial, the fit with the lowest held-out rollout error at 3 s settles onto a cycle 15× the stride period; on another trial, held-out error does flag the wrong-rhythm fit (1.05 against 0.24–0.40) that training loss does not **[have: gait_overparam_validation.jl]**.
 - Models that forecast well can still get the multipliers wrong. Read out of fitted models, Floquet multipliers vary widely across model classes, seeds and hyperparameters, even among models that forecast similarly: neural ODE on coupled FHN 0.01 against a truth of 0.69; ESN 0.64 [0.38–0.86]; DMD 0.71 [0.66–0.79] **[have: floquet_tuned.jl]**. Honest caveat: on noisy Stuart–Landau the ESN is closest (0.57 against 0.60).
 - **Rotation (SLIP only; coupled FHN's transverse multiplier is real) [exploratory: Fig 5C, slip_rotation.jl; NOT robust].** The SLIP step map is a complex pair, 0.769 ∠ 13.6° per step. A 2×2 section map read from the off-cycle runs recovers it on true runs (0.776 ∠ 12.4°; 0.768 ∠ 13.3° at a quarter of the perturbation) and gives real eigenvalues for every fit. But a higher-dimensional section state (rank 4–6) gives ESN seeds a rotating leading pair (7–23°, depending on rank and section), DMD a neutral mode plus weakly rotating ones (0–6°), and the neural ODE real eigenvalues throughout. DMD's operator has stable complex sidebands (0.827 ∠ 7.6°, 0.762 ∠ 14.4° per step); the 2×2 reading hides them behind its neutral mode. The pair is only just complex (tr²/4 = 0.559 against det 0.592) and nearly one-dimensional in CoM coordinates. Undecided whether to keep it.
 
-**¶4. R2, one answer.** The DMD fit is a least-squares problem with a unique solution for each hyperparameter setting: no seeds, no local minima, and results that vary smoothly with rank and delay. Expressive models give different answers at equal loss (§3 ¶6).
+**¶4. R3, one answer.** The DMD fit is a least-squares problem with a unique solution for each hyperparameter setting: no seeds, no local minima, and results that vary smoothly with rank and delay. Expressive models give different answers at equal loss (§3 ¶6).
 - Honest reading: over the first 4 cycles DMD is clearly the most accurate on coupled FHN and matches the best seeds on SLIP (ESN seed 3 0.039, neural ODE 0.046 against DMD 0.035), with no seed spread. Over longer horizons it does not fully relax (¶10). The neural ODE is as accurate on SLIP and consistent across seeds there, but erratic on coupled FHN; the ESN's answer depends on the seed on both. On these toy systems the seed spread is moderate. The large reproducibility failure is on gait (Fig 3B). DMD's advantage is that a wrong answer is the same wrong answer every time, and converges visibly with data.
 
-**¶5. R3, measurement noise: the linear bias is analysable and correctable; the expressive models' is not.** In linear models we know how estimation errors bias the result and can correct it. Least squares treats the predictors X as noise-free and the targets Y as noisy; with measurement noise this pulls eigenvalues inward. Instrumental variables remove the bias on the SLIP return map (Fig 2B, C). Forward–backward and total-least-squares DMD are the corrections usually recommended, and optimized/bagged DMD adds uncertainty estimates.
+**¶5. R4, measurement noise: the linear bias is analysable and correctable; the expressive models' is not.** In linear models we know how estimation errors bias the result and can correct it. Least squares treats the predictors X as noise-free and the targets Y as noisy; with measurement noise this pulls eigenvalues inward. Instrumental variables remove the bias on the SLIP return map (Fig 2B, C). Forward–backward and total-least-squares DMD are the corrections usually recommended, and optimized/bagged DMD adds uncertainty estimates.
 - Dawson et al. 2016 [cite?]; Hemati et al. 2017 [cite?]; Askham & Kutz 2018 [cite?]; Sashidhar & Kutz 2022 [cite?].
 - **The correction must match how the data were generated [have: fig6_bias_correction.jl; one or two sentences].** On stationary, noise-driven data (unperturbed walking), forward–backward eigenvalues come in reciprocal pairs λ, 1/λ (exactly in the long-record limit), so FB cannot report a decay. On the SLIP map it returns |λ| = 1.000 at every noise level, even without noise, while keeping the rotation per stride (48.4° against 48.6°). TLS is only partly right (open loop 0.91–0.96; with feedback 0.90 → 0.61 as noise rises). FB is designed for deterministic transients observed with noise, not for walking.
 - Honest framing for Hankel-DMD: with rank-truncated Hankel matrices, plain least squares was already nearly unbiased up to 20% measurement noise on coupled FHN decays **[have: dmd_noise_variants.jl, noise_models.jl]**. On real gait, IV on the companion operator changed transient growth little and lowered it rather than raising it (⅓-stride window AB 0.27 → 0.21, LF 0.60 → 0.52; ordering unchanged) **[have: iv_gait_operator.jl]**. So the companion's transient growth is not deflated by measurement noise. For gait the correction is a safeguard, not a result, and it is not a comparison point in the paper.
@@ -167,34 +176,34 @@ Why these requirements are hard to meet on gait (learnability):
   - No total-least-squares or errors-in-variables neural ODE found (state as "to our knowledge").
 - Exception: on noisy Stuart–Landau the ESN relaxes more reliably than DMD (¶10).
 
-**¶6. R4, data needs.** Hankel-DMD's relaxation rate converges visibly as decays are added (Fig 3C, §3 ¶7): coupled FHN from about 30 decays, Stuart–Landau only with ≥ 1.5-cycle windows and about 300. Whether the expressive models need fewer at matched data is Fig 3D **[pending]**. On real 15-s gait trials no model has enough (§5 ¶4).
+**¶6. R5, data needs.** Hankel-DMD's relaxation rate converges visibly as decays are added (Fig 3C, §3 ¶7): coupled FHN from about 30 decays, Stuart–Landau only with ≥ 1.5-cycle windows and about 300. Whether the expressive models need fewer at matched data is Fig 3D **[pending]**. On real 15-s gait trials no model has enough (§5 ¶4).
 
-**¶7. R5, cost and inspection.** Fits take seconds, which makes cross-validation, bootstrap over trials and subjects, and wide hyperparameter sweeps routine. A single neural-ODE fit takes hours **[have: timing from runs]**. Linear spectra can be verified with residuals and constrained by theory (§5 ¶5).
+**¶7. R6, cost and inspection.** Fits take seconds, which makes cross-validation, bootstrap over trials and subjects, and wide hyperparameter sweeps routine. A single neural-ODE fit takes hours **[have: timing from runs]**. Linear spectra can be verified with residuals and constrained by theory (§5 ¶5).
 
 **¶8. Implementation is not the explanation.** These failures persist with careful training: multiple shooting, adjoint gradients, RK4 integration, and train-only selection over wide searches. Common pitfalls make them worse (Box 1).
 - **Box 1 / supplement: neural-ODE pitfalls.** Forward Euler at the sample step spirals outward on oscillations; an output nonlinearity biases the vector field; very short shooting windows; latent encoder/decoder non-identifiability; summed weight decay; selection on minibatch loss. **[new, optional: a controlled degradation test on Stuart–Landau, about 1 h]**
 
-**¶9. Scorecard [new: render as Table 1, from the results above].** Hankel-DMD is the only candidate that meets R1–R5 together on these benchmarks. It does not win every cell (¶10).
-- R1, rollouts: DMD keeps the correct cycle in 92% of cells and never blows up; expressive models 42–62%, with blow-up or a wrong attractor in 12–19% (Fig 4).
-- R1, off-cycle over the first 4 cycles: DMD best on coupled FHN (0.07 against 0.15–0.32), tied with the best seeds on SLIP (0.035 against 0.039–0.17); beyond about 8 steps it plateaus (¶10), where the ESN returns to its cycle.
-- R2: DMD gives one answer; the ESN depends on the seed on both systems; the neural ODE is consistent on SLIP, erratic on coupled FHN, and its equal-loss fits to gait disagree (periods 0.7–21×).
-- R3: DMD nearly unbiased up to 20% noise on coupled FHN decays, and linear-map bias correctable (IV, Fig 2B, C); no handle for the expressive models; exception on noisy Stuart–Landau.
-- R4: DMD converges visibly with transients (Fig 3C); expressive models at matched data pending (Fig 3D).
-- R5: seconds against hours per fit.
+**¶9. Scorecard [new: render as Table 1, from the results above].** Hankel-DMD is the only candidate that meets R1–R6 together on these benchmarks. It does not win every cell (¶10).
+- R1, first-cycle forecast skill against the mean cycle (Fig 4C): DMD and ESN near-exact on clean data (+0.6 to +1.0); on noisy data DMD −0.43 to +0.17, ESN −13 to +0.42, neural ODE and SSM mostly negative. Gait over 5 s (Fig S1): DMD −0.18 to −0.30, SSM −0.41 to −0.65. Off the cycle (Fig 5): DMD best on coupled FHN (0.07 against 0.15–0.32), tied with the best seeds on SLIP (0.035 against 0.039–0.17).
+- R2: DMD keeps the correct cycle in 92% of cells and never blows up; expressive models 42–62%, with blow-up or a wrong attractor in 12–19% (Fig 4); beyond about 8 steps DMD's off-cycle deviation plateaus (¶10), where the ESN returns to its cycle.
+- R3: DMD gives one answer; the ESN depends on the seed on both systems; the neural ODE is consistent on SLIP, erratic on coupled FHN, and its equal-loss fits to gait disagree (periods 0.7–21×).
+- R4: DMD nearly unbiased up to 20% noise on coupled FHN decays, and linear-map bias correctable (IV, Fig 2B, C); no handle for the expressive models; exception on noisy Stuart–Landau.
+- R5: DMD converges visibly with transients (Fig 3C); expressive models at matched data pending (Fig 3D).
+- R6: seconds against hours per fit.
 
 **¶10. Where linear models fall short.**
-- Linearity is not a free lunch. DMD needs transient-rich data and long enough delay windows. Its settings matter on Stuart–Landau. Under measurement noise the ESN was the more reliable model for Stuart–Landau relaxation (median 0.56–0.66 against DMD's 0.8–1.0, truth 0.58) **[have]**.
+- Linearity is not a free lunch. DMD needs transient-rich data and long enough delay windows. On noise-driven data its forecasts stay near the reference, and the best ESN settings forecast better on 5 of 9 cells (¶2). Its settings matter on Stuart–Landau. Under measurement noise the ESN was the more reliable model for Stuart–Landau relaxation (median 0.56–0.66 against DMD's 0.8–1.0, truth 0.58) **[have]**.
 - No passive-data model recovers coupling direction **[have]**.
 - **A linear model's cycle amplitude is neutral [have: slip_rotation.jl header; long-horizon check].** A linear model sustains a cycle only by pinning its fundamental on the unit circle, so the part of a perturbation that lands on the fundamental never decays. Over 30 steps, DMD's off-cycle deviation from its own run plateaus at 28–49% of the initial deviation after about 8 steps on SLIP, and at 20–47% on coupled FHN; the truth and the ESN return to their cycles. Its higher harmonics also decay slowly (0.98, 0.98, 0.97 per step on SLIP), so its waveform drifts. This bounds the DMD result in Fig 5A, B to the first few cycles.
 - The claim is about meeting the requirements together, with failures that are known and analysable, not about universal accuracy.
 
-**Figure 4: Self-driving benchmark (R1)** **[have: Fig2_self_driving.jl]**.
+**Figure 4: Self-driving benchmark (R1, R2)** **[have: Fig2_self_driving.jl]**.
 - (A) Phase portraits in the realistic regime (12 training cycles, 1% measurement noise): free runs from the end of the training window, every seed, degree or rank overlaid.
 - (B) Outcome after 30 free-running cycles, pooled over systems and regimes: ok / decays with the right rhythm / collapse / blow-up / wrong rhythm.
-- (C) Free-run error over the first cycle, per system, with a phase-aligned mean-cycle template as a non-dynamical reference level.
+- (C) Forecast error over the first held-out cycle, per system, with the mean-cycle reference forecast (zero skill). Consider plotting skill directly.
 - Supplement: forecast baselines **[have: FigS1]**.
 
-**Figure 5: One convex answer (R1, R2)** **[have: Fig6_linear_affordances.jl]**.
+**Figure 5: One convex answer (R1, R3)** **[have: Fig6_linear_affordances.jl]**.
 - (A, B) Off-cycle relaxation per start and per fit over the first 4 cycles, coupled FHN and SLIP (centre of mass): DMD (one fit) against ESN and neural-ODE seeds, truth per start. Stuart–Landau dropped (too simple; DMD reproducibly wrong at 10 decays).
 - (C) SLIP step multiplier from the same runs, modulus against rotation. Provisional, and its 2×2 reading is not robust (see ¶3): drop, redo, or replace with DMD's long-horizon plateau (¶10), or with Fig S6B, which shows DMD's spectrum against the exact lattice.
 - The SLIP bias correction moved to Fig 2B, C; FB/TLS stay in the text only.
@@ -270,7 +279,7 @@ Open: whether to add an LSTM (the gait-signatures model class) **[new]**. A revi
 
 ## 6. Discussion and recommendations
 
-**¶1. Recommendation: evaluate models against the requirements, not forecast error.** Run them free, start them off the cycle, refit across seeds, add measurement noise, and test at realistic data sizes (§3 ¶1).
+**¶1. Recommendation: judge models by how they predict, the way they will be used.** Score autonomous rollouts on held-out data as skill against reference forecasts (mean cycle, last stride), on the full signal and on the deviations, on and off the cycle, and select hyperparameters by rollout validation, not by training or one-step loss. Then check long-run behaviour, seed spread, measurement noise and data size (§3 ¶1).
 
 **¶2. Recommendation: collect transients.** Design experiments that excite transverse dynamics (perturbations, speed changes, split-belt). Without them, no model can identify stability. With clinical-length recordings (a few strides per condition), report identifiability and a null, not a multiplier (§5 ¶5).
 
@@ -291,14 +300,14 @@ The paper is now organised as target → requirements → candidates → gait, n
 | Old | New |
 |---|---|
 | §2 Learnability | §3 ¶2–¶7 (now the reasons the requirements are hard on gait) |
-| §3 Benchmark (¶1–¶4, ¶6) | §4 ¶1–¶2, ¶8 |
-| §3 ¶5 Template reference | §3 ¶1 (forecast accuracy is not a requirement) |
+| §3 Benchmark (¶1–¶4, ¶6) | §4 ¶1, ¶3, ¶8 |
+| §3 ¶5 Template | §3 ¶1, R1 (the mean cycle as the zero-skill reference forecast) |
 | §4 ¶1, ¶2, ¶4, ¶5, ¶6 Floquet | §2 ¶1, ¶5, ¶4, ¶2, ¶6 |
 | §4 ¶3 Models that forecast well get multipliers wrong | §4 ¶3 |
 | §5 ¶1, ¶3, ¶4, ¶5 | §5 ¶1, ¶2, ¶3, ¶4 |
 | §5 ¶2 Variability carries the control signal | §2 ¶3 |
-| §6 ¶1 Stability by construction | §4 ¶2 |
-| §6 ¶2 One convex answer | §4 ¶3 (off-cycle results), ¶4 (one answer) |
+| §6 ¶1 Stability by construction | §4 ¶3 |
+| §6 ¶2 One convex answer | §4 ¶2 (off-cycle results), ¶4 (one answer) |
 | §6 ¶3 Cheap enough to validate | §4 ¶7 |
 | §6 ¶4–¶5 Bias analysable; nonlinear models biased | §4 ¶5 |
 | §6 ¶6 Verifiable spectra, lattice | §5 ¶5 |
@@ -316,6 +325,8 @@ The paper is now organised as target → requirements → candidates → gait, n
 
 Also in this pass: Figures 1 and 2 were marked [new] but exist; their panel lists now follow the scripts. The identification test is Fig S5 (was cited as Fig 5D). New: §3 ¶1 (requirements R1–R5), §2 ¶3's first two sentences, §4 ¶1's framing, ¶6, ¶9 (scorecard). "Flexible" is now "expressive" throughout.
 
+Prediction pass (same day): prediction is now the first requirement (R1, predictive skill in autonomous rollouts on held-out data, scored against the mean cycle and the last stride as zero-skill references); long-run fidelity is R2, and the old R2–R5 are R3–R6. §4 ¶2 is new (forecast skill from the Fig 4C caches, Fig S1, Fig 5, Fig S6D); validation by rollout rather than training loss is to-do 7.
+
 ## Changes from the Sep-10 draft (index.qmd)
 
 - Drop the Stuart–Landau non-normality demonstration. The Figure 1 non-normality was an artefact (62 modes fitted to a rank-2 signal), and the SL multiplier of 0.533 was wrong.
@@ -328,9 +339,14 @@ Also in this pass: Figures 1 and 2 were marked [new] but exist; their panel list
 
 1. **Fig 1/2 systems.** SLIP and Van der Pol: Floquet maps, piecewise maps, monodromy transient growth. **[done: Fig3_floquet_maps.jl, Fig4_nonnormality.jl]**; replace the coupled-FHN numbers in §2 ¶5 with SLIP ones.
 2. **Fig 5 reproducibility.** Coupled FHN and SLIP. **[done]**
-3. **Matched-data off-cycle comparison** (ESN and neural ODE at 100 decays), Fig 3D. **[new; neural ODE takes hours]** Fills R4 for the expressive models.
+3. **Matched-data off-cycle comparison** (ESN and neural ODE at 100 decays), Fig 3D. **[new; neural ODE takes hours]** Fills R5 for the expressive models.
 4. **Bias-correction demo.** IV in Fig 2B, C. **[done]**
 5. **Gait transient structure**, Fig 6. **[new; coordinate with companion paper]**
 6. **Scorecard, Table 1** (§4 ¶9). **[new; from existing results]**
-7. **Optional:** LSTM in the benchmark; neural-ODE pitfalls test; gait-signature residual-shuffle test; ResDMD on gait.
-8. **References:** verify every [cite?]; build references.bib.
+7. **Validation, not training loss [new; protocol to agree].**
+   - Fig 3B and Fig S2E–F: plot against held-out rollout error (cached) instead of final training loss.
+   - One-step against rollout validation: record both, for every setting in dmd_tuning.jl and esn_tuning.jl, and relate each to the 30-cycle outcome and to the test forecast skill. Does rollout validation pick the models that keep the right cycle where one-step validation does not? Cheap (DMD 60 settings, ESN 36 × 3 seeds per cell).
+   - Gait neural ODEs: save the weights in gait_overparam.jl and refit, to add one-step validation error (hours).
+   - Held-out trials as validation data are confounded by speed (each of a person's trials is at a different speed); held-out time within a trial is cleaner.
+8. **Optional:** LSTM in the benchmark; neural-ODE pitfalls test; gait-signature residual-shuffle test; ResDMD on gait.
+9. **References:** verify every [cite?]; build references.bib.

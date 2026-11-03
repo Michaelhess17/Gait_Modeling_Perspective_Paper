@@ -128,15 +128,15 @@ for f in readdir(DIR)
     m === nothing && continue
     o = deserialize(joinpath(DIR, f))
     tr = tuned_rows(m[1], m[2]); tuned = unique([x.model for x in tr])
-    append!(allrows, [(; r.model, r.fate, sys = m[1], r.e1) for r in o.rows if !(r.model in tuned)])
+    append!(allrows, [(; r.model, r.fate, sys = m[1], reg = m[2], r.e1) for r in o.rows if !(r.model in tuned)])
     m[3] == "dmd-esn-template" &&
-        append!(allrows, [(; x.model, x.fate, sys = m[1], x.e1) for x in tr])
+        append!(allrows, [(; x.model, x.fate, sys = m[1], reg = m[2], x.e1) for x in tr])
 end
 for f in readdir(DIR)
     m = match(r"^ssm_(.+)_(realistic|long)\.npz$", f)
     m === nothing && continue
     S = npzread(joinpath(DIR, f))
-    append!(allrows, [(; model = "SSM", fate = FATES[S["fate_code"][k] + 1], sys = m[1],
+    append!(allrows, [(; model = "SSM", fate = FATES[S["fate_code"][k] + 1], sys = m[1], reg = m[2],
                          e1 = S["e1"][k]) for k in eachindex(S["fate_code"])])
 end
 
@@ -198,4 +198,20 @@ for (m, _) in vcat(MODELS, [("template", nothing)])
     isempty(mr) && continue
     println(rpad(m, 9), " n=", lpad(length(mr), 3), "  ",
             join(["$(f) $(count(x -> x.fate == f, mr))" for f in FATES], "  "))
+end
+
+# Panel C as numbers: median first-cycle free-run error per cell, and skill against the mean-cycle reference forecast
+# (1 − model / template; 0 = no better than the mean cycle, 1 = exact), as weather forecasts are scored against
+# climatology.
+fin(v) = filter(isfinite, v)
+for reg in ("long", "realistic")
+    println("\nFirst-cycle forecast error, $reg regime (median over seeds/settings; skill against the mean cycle):")
+    for s in sort(unique(x.sys for x in allrows if x.reg == reg))
+        t = median(fin([x.e1 for x in allrows if x.sys == s && x.reg == reg && x.model == "template"]))
+        cells = map(("DMD", "ESN", "NODE", "SSM")) do m
+            v = fin([x.e1 for x in allrows if x.sys == s && x.reg == reg && x.model == m])
+            isempty(v) ? "$(m) —" : @sprintf("%s %.3f (%+.2f)", m, median(v), 1 - median(v) / t)
+        end
+        println(rpad(s, 8), @sprintf(" template %.3f | ", t), join(cells, "  "))
+    end
 end
