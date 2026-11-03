@@ -98,7 +98,11 @@ Structure (restructured 2026-11-03; the mapping from the previous outline is at 
 - **(R1) Predictive skill in autonomous rollouts.** Run from the current state with no data fed back, the model forecasts held-out data over the next few strides, on the cycle and after perturbations.
   - Skill is measured against reference forecasts that need no dynamics, the mean cycle at the current phase and the last stride repeated, as weather forecasts are scored against climatology and persistence (skill = 1 − model error / reference error). The references are not candidate models (they have no state and cannot be started off the cycle); they define zero skill.
   - Skill is reported on the full signal and on the deviations from the mean cycle, because the deviations are where the dynamics are.
-  - Errors are validation errors: computed on held-out data (later cycles of a trial; held-out decays or realisations), by autonomous rollout, not one-step (teacher-forced) error, which can stay small for models whose rollouts fail **[new: one-step against rollout validation, to-do 7]**.
+  - Errors are validation errors: computed on held-out data (later cycles of a trial; held-out decays or realisations), by autonomous rollout, not one-step (teacher-forced) error **[have: validation_criteria.jl, Fig S7]**.
+    - Every setting of the benchmark's tuning grids (DMD 60; ESN 36 × 3 seeds), in all 13 cells, fitted without its last two training cycles and scored on them by four criteria, then refitted and tested.
+    - Rollout errors rank settings by their test forecast error; one-step errors do not. Median rank correlation across settings: DMD 0.87 (one held-out rollout) and 0.88 (multistart: 1-cycle rollouts from 5 starts) against 0.40 (in-sample one-step) and 0.38 (held-out one-step); ESN 0.71 and 0.75 against −0.19 and 0.17.
+    - As a selection rule for the ESN, in-sample one-step error picks blow-ups (right cycle kept in 2 of 13 cells, median test skill −4.2); held-out one-step 7 of 13 (−0.11, with one choice at −72); one held-out rollout 5 of 13 (+0.17, occasional catastrophes); multistart rollout 9 of 13 (+0.16, worst −2.7), as often as the setting best on the test data itself (9 of 13, +0.53). For DMD every criterion chooses passably (8–11 of 13; median skill −0.22 to +0.16).
+    - The setting best on the test forecast keeps the cycle in only 9 of 13 cells for both models: short-horizon skill and long-run behaviour are separate requirements (R1, R2).
   - Reference levels on gait, held-out error at 0.7 / 2.7 / 4.7 s lead **[have: FigS1]**: mean cycle 0.17/0.27/0.39; last stride repeated 0.20/0.30/0.42; Hankel-DMD (rank 70, ridge 1e-4, stabilised; the companion paper's settings) 0.21/0.35/0.46 (rank 10: 0.27/0.40/0.54; a 0.6–1.5-s window: 0.19/0.30/0.42–0.44 **[window test not in the figure]**); spectral-submanifold model 0.28/0.38/0.62.
 - **(R2) Faithful long-run behaviour.** Over long rollouts it keeps the right cycle (no blow-up, wrong period or collapse) and returns to it after a perturbation: evidence that it learned the vector field around the cycle. Short-horizon skill does not guarantee this (§4 ¶3).
 - **(R3) One answer.** The same data give the same model and the same stability readout across seeds and nearby hyperparameters, so differences between people are not fitting noise.
@@ -125,7 +129,8 @@ Why these requirements are hard to meet on gait (learnability):
 - On passive, noise-driven data the forecast skill any model can reach beyond the mean cycle is therefore small: the deviations are barely predictable from the current state (§5 ¶4). Prediction is tested best where the data hold predictable deviations, after perturbations.
 
 **¶6. Consequence: on-cycle data identify the cycle, not the dynamics around it (R2, R3).** Many models fit on-cycle data equally well yet disagree about everything off the cycle, so training loss cannot select among them.
-- Gait neural-ODE fits reach equal loss with learned periods from 0.7× to 21× the stride and different multipliers **[have: Fig_node_gait, gait_overparam.jl]**.
+- Gait neural-ODE fits reach similar training loss with learned periods from 0.7× to 21× the stride and different multipliers **[have: Fig_node_gait, gait_overparam.jl]**.
+- Held-out forecasts (5 s after the 10-s training window) do not pin the dynamics either **[have: Fig 3B, gait_overparam_validation.jl]**. On the LF trial the best held-out forecasts (error 0.24–0.49) come from stride-like cycles, with multipliers 0.54–0.73, and the wrong-rhythm fit is clearly worse (1.52). On the AB trial the best held-out forecasts (0.29–0.86) come from fits whose cycles are 9–15× the stride period. On the HF trial no fit forecasts better than the mean (1.17–1.65).
 - Floquet multipliers read from models trained on on-cycle data are unconstrained: Stuart–Landau neural ODE ≈ 1.0 and DMD ≈ 0.99 against a truth of 0.60 **[have: floquet_tuned.jl]**.
 
 **¶7. Transient-rich data make the problem learnable, given enough of it (R1, R5).** When training data contain decays from perturbed states, transverse relaxation becomes identifiable. Even then, recovering it takes many transients and a delay window long enough to span the decay. Nothing is free.
@@ -134,9 +139,13 @@ Why these requirements are hard to meet on gait (learnability):
 
 **Figure 3: Learnability** **[have: Fig1_learnability.jl]**.
 - (A) What the data cover: coupled FHN, the same 30-cycle budget as one long on-cycle trajectory or as 10 decays × 3 cycles from perturbed starts; on-cycle data barely sample the slow transverse direction.
-- (B) Equal-loss neural-ODE fits to gait diverge **[have]**.
+- (B) Neural ODEs fitted to gait: learned period and multiplier against held-out forecast error **[have]**. Trials 36 and 90 (earlier runs, no held-out forecast cached) are left out until refitted.
 - (C) DMD relaxation rate against amount of transient data **[have]**.
 - (D, optional) Off-cycle relaxation of all models at matched data **[pending: ESN/NODE retune at 100 decays]**.
+
+**Figure S7: Validate by rollout, not by one-step error (R1)** **[have: FigS7_validation.jl, validation_criteria.jl]**.
+- (A) Rank correlation across settings between each validation error (in-sample one-step, held-out one-step, one held-out rollout, multistart rollout) and the test forecast error, per cell, DMD and ESN.
+- (B) Test forecast skill of the setting each criterion chooses, with the number of cells where that choice keeps the cycle.
 
 ---
 
@@ -279,7 +288,7 @@ Open: whether to add an LSTM (the gait-signatures model class) **[new]**. A revi
 
 ## 6. Discussion and recommendations
 
-**¶1. Recommendation: judge models by how they predict, the way they will be used.** Score autonomous rollouts on held-out data as skill against reference forecasts (mean cycle, last stride), on the full signal and on the deviations, on and off the cycle, and select hyperparameters by rollout validation, not by training or one-step loss. Then check long-run behaviour, seed spread, measurement noise and data size (§3 ¶1).
+**¶1. Recommendation: judge models by how they predict, the way they will be used.** Score autonomous rollouts on held-out data as skill against reference forecasts (mean cycle, last stride), on the full signal and on the deviations, on and off the cycle, and select hyperparameters by rollout validation (preferably several rollouts from different starts), not by training or one-step loss (Fig S7). Then check long-run behaviour, seed spread, measurement noise and data size (§3 ¶1).
 
 **¶2. Recommendation: collect transients.** Design experiments that excite transverse dynamics (perturbations, speed changes, split-belt). Without them, no model can identify stability. With clinical-length recordings (a few strides per condition), report identifiability and a null, not a multiplier (§5 ¶5).
 
@@ -343,10 +352,10 @@ Prediction pass (same day): prediction is now the first requirement (R1, predict
 4. **Bias-correction demo.** IV in Fig 2B, C. **[done]**
 5. **Gait transient structure**, Fig 6. **[new; coordinate with companion paper]**
 6. **Scorecard, Table 1** (§4 ¶9). **[new; from existing results]**
-7. **Validation, not training loss [new; protocol to agree].**
-   - Fig 3B and Fig S2E–F: plot against held-out rollout error (cached) instead of final training loss.
-   - One-step against rollout validation: record both, for every setting in dmd_tuning.jl and esn_tuning.jl, and relate each to the 30-cycle outcome and to the test forecast skill. Does rollout validation pick the models that keep the right cycle where one-step validation does not? Cheap (DMD 60 settings, ESN 36 × 3 seeds per cell).
-   - Gait neural ODEs: save the weights in gait_overparam.jl and refit, to add one-step validation error (hours).
+7. **Validation, not training loss.**
+   - Fig 3B and Fig S2E–F against held-out rollout error **[done]**.
+   - One-step against rollout validation on the DMD and ESN tuning grids **[done: validation_criteria.jl, Fig S7]**. The tuning scripts themselves still choose by one held-out rollout; switching them to the multistart rollout would change the ESN's chosen settings in Fig 4 (decide).
+   - Gait neural ODEs: save the weights in gait_overparam.jl and refit, to add one-step validation error, and redo trials 36 and 90 with held-out forecasts **[new; hours]**.
    - Held-out trials as validation data are confounded by speed (each of a person's trials is at a different speed); held-out time within a trial is cleaner.
 8. **Optional:** LSTM in the benchmark; neural-ODE pitfalls test; gait-signature residual-shuffle test; ResDMD on gait.
 9. **References:** verify every [cite?]; build references.bib.

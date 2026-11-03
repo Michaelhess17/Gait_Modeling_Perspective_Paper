@@ -13,15 +13,16 @@
 #   (D)   Forecast error against lead time for every seed, with the
 #         phase-aligned mean-cycle template (same information) for reference.
 #   (E)   Period of the cycle each learned field settles onto, relative to the
-#         subject's measured stride period, against final training loss.
-#   (F)   Transverse Floquet multiplier of that learned cycle against training
-#         loss. Equal loss, different dynamics: the data do not pin it down.
+#         subject's measured stride period, against the validation error of the
+#         autonomous forecast over the held-out 5 s (cumulative RMS / held-out RMS).
+#   (F)   Transverse Floquet multiplier of that learned cycle against the same
+#         validation error: held-out forecasts do not pin the dynamics down.
 #
 # Set NODE_FIG_SUFFIX=_smoke3 to build from smoke-test caches while developing.
 
 using Pkg; Pkg.activate(dirname(@__DIR__); io = devnull)
 include("paper_style.jl")
-using Serialization, Statistics, CSV   # CSV loads InlineStrings, needed to deserialize v1 caches
+using Serialization, Statistics
 
 const SUFFIX = get(ENV, "NODE_FIG_SUFFIX", "")
 const TRIALS = [91, 243, 231]                 # AB, HF, LF (as in gait_node_multishoot.jl)
@@ -39,12 +40,8 @@ end
 runs = Dict(t => load_runs(t) for t in TRIALS)
 all_runs = reduce(vcat, values(runs))
 isempty(all_runs) && error("no gait_overparam_v2 caches found (suffix '$SUFFIX')")
-# earlier summary-only runs (two more AB trials) for panels E–F
-v1 = NamedTuple[]
-for t in (36, 90), s in SEEDS
-    f = joinpath(dirname(@__DIR__), "cache", "gait_overparam_t$(t)_s$(s).jls")
-    isfile(f) && push!(v1, deserialize(f))
-end
+# (the earlier summary-only runs on AB trials 36 and 90 have no held-out forecast, so they are not shown)
+heldout(r) = isempty(r.err_t) ? NaN : r.err_t[end]      # validation error over the held-out 5 s
 
 """
 Phase-aligned mean-cycle template forecast with the same information as the
@@ -131,13 +128,15 @@ text!(axD, 4.9, 0.05; text = "dashed: mean-cycle template", color = C_TRUTH,
 limits!(axD, 0, 5, 0, 2.5)
 plabel!(gbot[1, 1], "D")
 
-# ── (E, F) learned cycle vs training loss ────────────────────────────────────
+# ── (E, F) learned cycle vs held-out forecast error ──────────────────────────
 cyc(rs) = [r for r in rs if r.kind == :cycle && isfinite(r.period_ratio)]
-axE = Axis(gbot[1, 2]; xlabel = "Final training loss", ylabel = "Learned period / stride period",
-           title = "Same fit, different rhythm", yscale = log2,
+axE = Axis(gbot[1, 2]; xlabel = "Held-out forecast error (5 s)", ylabel = "Learned period / stride period",
+           title = "Learned rhythm", yscale = log2,
            yticks = ([0.5, 1, 2, 4, 8, 16], ["0.5", "1", "2", "4", "8", "16"]))
-axF = Axis(gbot[1, 3]; xlabel = "Final training loss", ylabel = "Transverse multiplier |μ|",
-           title = "Same fit, different stability")
+axF = Axis(gbot[1, 3]; xlabel = "Held-out forecast error (5 s)", ylabel = "Transverse multiplier |μ|",
+           title = "Learned stability")
+vlines!(axE, 1.0; color = C_REF, linewidth = 0.6, linestyle = :dot)
+vlines!(axF, 1.0; color = C_REF, linewidth = 0.6, linestyle = :dot)
 # a learned "cycle" many strides long is not a stride-like (period-1) orbit, and a
 # Floquet multiplier read off it at that period is meaningless: show it in E,
 # leave it out of F, and count it
@@ -147,17 +146,16 @@ text!(axE, 0.02, 0.98; space = :relative, align = (:left, :top), fontsize = 7,
       text = "shaded: not a stride-like cycle")
 refline!(axE, 1.0; linestyle = :solid)
 refline!(axF, 1.0)
-markers = Dict(91 => :circle, 243 => :diamond, 231 => :utriangle, 36 => :rect, 90 => :cross)
-for (t, rs) in vcat([(t, runs[t]) for t in TRIALS],
-                    [(t, [r for r in v1 if r.trial == t]) for t in (36, 90)])
+markers = Dict(91 => :circle, 243 => :diamond, 231 => :utriangle)
+for (t, rs) in [(t, runs[t]) for t in TRIALS]
     c = cyc(rs); isempty(c) && continue
     g = String(c[1].group)
     kw = (; color = GROUP_COL[g], marker = markers[t], markersize = 6)
-    scatter!(axE, [r.loss for r in c], [r.period_ratio for r in c]; kw...)
+    scatter!(axE, heldout.(c), [r.period_ratio for r in c]; kw...)
     cs = [r for r in c if r.period_ratio < STRIDE_LIKE]
-    isempty(cs) || scatter!(axF, [r.loss for r in cs], [r.μ for r in cs]; kw...)
+    isempty(cs) || scatter!(axF, heldout.(cs), [r.μ for r in cs]; kw...)
 end
-pool = vcat(all_runs, v1)
+pool = all_runs
 n_nocycle = count(r -> r.kind != :cycle, pool)
 n_long = count(r -> r.kind == :cycle && r.period_ratio >= STRIDE_LIKE, pool)
 text!(axF, 0.02, 0.02; space = :relative, align = (:left, :bottom), fontsize = 7,
@@ -167,11 +165,8 @@ text!(axF, 0.02, 0.02; space = :relative, align = (:left, :bottom), fontsize = 7
 ylims!(axE, 0.4, 32)
 Legend(gbot[1, 4],
        [MarkerElement(color = GROUP_COL[String(rs[1].group)], marker = markers[t], markersize = 6)
-        for (t, rs) in vcat([(t, runs[t]) for t in TRIALS if !isempty(runs[t])],
-                            [(t, [r for r in v1 if r.trial == t]) for t in (36, 90)
-                             if any(r -> r.trial == t, v1)])],
-       vcat([@sprintf("%s %d", runs[t][1].group, t) for t in TRIALS if !isempty(runs[t])],
-            [@sprintf("AB %d", t) for t in (36, 90) if any(r -> r.trial == t, v1)]);
+        for (t, rs) in [(t, runs[t]) for t in TRIALS if !isempty(runs[t])]],
+       [@sprintf("%s %d", runs[t][1].group, t) for t in TRIALS if !isempty(runs[t])];
        title = "trial", titlesize = 7)
 plabel!(gbot[1, 2], "E"); plabel!(gbot[1, 3], "F")
 

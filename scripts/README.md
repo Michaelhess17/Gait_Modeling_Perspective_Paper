@@ -22,6 +22,8 @@ Section and figure numbers refer to ../OUTLINE.md.
   relaxation on coupled FHN and SLIP; SLIP step multiplier (modulus and rotation) read from the same runs
 - Supplement: `FigS5_identification.jl` (from the Fig 5 cache), `FigS1_forecast_baselines.jl`, `FigS2_node_gait.jl`, `FigS3_floquet_models.jl` (needs rebuilding
   from tuned/decay results), `FigS4_offcycle.jl`
+- `FigS7_validation.jl` (`validation_criteria.jl`, `-t 16`, → cache/selfdrive/validation_criteria.jls): one-step
+  against rollout validation errors on the DMD and ESN tuning grids, and what each criterion would choose
 - `FigS6_lattice.jl` (`figS6_slip_data.jl` → cache/figS6/slip.jls; `gait_lattice.jl` → cache/fig5/gait_lattice.jls;
   `gait_lattice_null.jl` → cache/fig5/gait_lattice_null.jls): how the lattice-constrained model works, and how it
   compares on SLIP and gait

@@ -6,9 +6,11 @@
 #       desynchrony w₁ − w₂ at a Poincaré section decays by |μ| per cycle; on-cycle data barely sample it, so
 #       even this one-dimensional regression gets the slope wrong.
 #       Data: scripts/fig1_coverage_data.jl → cache/fig1/coverage_cfhn.jls.
-#   (B) Equal training loss, different dynamics. Over-parameterised neural ODEs fitted to real gait
-#       (scripts/gait_overparam.jl): the period of the cycle each learned field settles onto, and the
-#       transverse multiplier of that cycle, against final training loss.
+#   (B) Held-out forecasts do not pin the dynamics. Over-parameterised neural ODEs fitted to 10 s of real gait
+#       (scripts/gait_overparam.jl, 6 seeds × 3 trials): the period of the cycle each learned field settles onto,
+#       and the transverse multiplier of that cycle, against the validation error of its autonomous forecast over
+#       the held-out 5 s (cumulative RMS / held-out RMS; 1 = no better than forecasting the mean). Trials 36 and 90
+#       of the earlier version have no held-out forecast cached and are left out until refitted.
 #   (C) With transient data the relaxation becomes identifiable — given enough of it. Per-cycle off-cycle
 #       relaxation rate of Hankel-DMD fitted to n decays (scripts/dmd_delay_sweep.jl; 16 settings of delay
 #       window × rank per data size, least squares). Grey band: truth.
@@ -60,33 +62,34 @@ plabel!(gA[1, 1], "A")
 colsize!(gA, 2, Auto(0.55))
 colgap!(gA, 14)
 
-# ── B: equal loss, different dynamics (gait neural ODEs) ────────────────────
+# ── B: held-out forecast error against the learned dynamics (gait neural ODEs) ──
 const SEEDS = 1:6; const STRIDE_LIKE = 3.0
 runs = NamedTuple[]
 for t in (91, 243, 231), s in SEEDS
     f = cachef("gait_overparam_v2_t$(t)_s$(s).jls"); isfile(f) && push!(runs, deserialize(f))
 end
-for t in (36, 90), s in SEEDS
-    f = cachef("gait_overparam_t$(t)_s$(s).jls"); isfile(f) && push!(runs, deserialize(f))
-end
+heldout(r) = isempty(r.err_t) ? NaN : r.err_t[end]      # validation error over the held-out 5 s
 cyc = [r for r in runs if r.kind == :cycle && isfinite(r.period_ratio)]
-markers = Dict(91 => :circle, 243 => :diamond, 231 => :utriangle, 36 => :rect, 90 => :cross)
-axB1 = Axis(gB[1, 1]; xlabel = "Final training loss", ylabel = "Learned period / stride period",
-            title = "Same fit, different rhythm", yscale = log2,
+markers = Dict(91 => :circle, 243 => :diamond, 231 => :utriangle)
+axB1 = Axis(gB[1, 1]; xlabel = "Held-out forecast error (5 s)", ylabel = "Learned period / stride period",
+            title = "Learned rhythm", yscale = log2,
             yticks = ([0.5, 1, 2, 4, 8, 16], ["0.5", "1", "2", "4", "8", "16"]))
-axB2 = Axis(gB[1, 2]; xlabel = "Final training loss", ylabel = "Transverse multiplier |μ|",
-            title = "Same fit, different stability")
+axB2 = Axis(gB[1, 2]; xlabel = "Held-out forecast error (5 s)", ylabel = "Transverse multiplier |μ|",
+            title = "Learned stability")
+vlines!(axB1, 1.0; color = C_REF, linewidth = 0.6, linestyle = :dot)
+vlines!(axB2, 1.0; color = C_REF, linewidth = 0.6, linestyle = :dot)
+text!(axB1, 0.98, 1.5; text = "forecast\nthe mean", fontsize = 6.5, color = C_REF, align = (:right, :bottom))
 hspan!(axB1, STRIDE_LIKE, 32; color = C_SHADE)
 text!(axB1, 0.02, 0.98; space = :relative, align = (:left, :top), fontsize = 7,
       text = "shaded: not a stride-like cycle")
 refline!(axB1, 1.0; linestyle = :solid); refline!(axB2, 1.0)
-trials = [(91, "AB"), (36, "AB"), (90, "AB"), (243, "HF"), (231, "LF")]
+trials = [(91, "AB"), (243, "HF"), (231, "LF")]
 for (t, g) in trials
     c = [r for r in cyc if r.trial == t]; isempty(c) && continue
     kw = (; color = GROUP_COL[g], marker = markers[t], markersize = 6)
-    scatter!(axB1, [r.loss for r in c], [r.period_ratio for r in c]; kw...)
+    scatter!(axB1, heldout.(c), [r.period_ratio for r in c]; kw...)
     cs = [r for r in c if r.period_ratio < STRIDE_LIKE]
-    isempty(cs) || scatter!(axB2, [r.loss for r in cs], [r.μ for r in cs]; kw...)
+    isempty(cs) || scatter!(axB2, heldout.(cs), [r.μ for r in cs]; kw...)
 end
 ylims!(axB1, 0.4, 32)
 text!(axB2, 0.02, 0.02; space = :relative, align = (:left, :bottom), fontsize = 7,
