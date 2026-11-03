@@ -108,7 +108,7 @@ Legend(gtop[0, 1:3],
 
 # ── (D) forecast error vs lead ───────────────────────────────────────────────
 axD = Axis(gbot[1, 1]; xlabel = "Lead time (s)", ylabel = "Forecast error (SD units)",
-           title = "Error vs mean-cycle template")
+           title = "Forecast error")
 refline!(axD, 1.0)
 for t in TRIALS
     rs = runs[t]; isempty(rs) && continue

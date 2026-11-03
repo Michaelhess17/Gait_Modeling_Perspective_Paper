@@ -24,7 +24,7 @@ Structure (restructured 2026-11-03; the mapping from the previous outline is at 
 
 1. Gait dynamics are usually summarised by asymptotic stability (Floquet multipliers), and data-driven dynamical models (neural ODEs, reservoir computers, sparse regression, spectral-submanifold reductions) are increasingly fitted to walking.
 2. But walking never reaches the asymptotic regime: it is perturbed every stride and corrected by noisy feedback, so what governs it is the transient response over the next few strides, which eigenvalues of non-normal return maps miss and which short, noisy records estimate poorly.
-3. Studying transients asks specific things of a model: autonomous rollouts that keep the right cycle and relax correctly from off-cycle states, one answer per data set, predictable behaviour under measurement noise, and modest data needs. Forecast accuracy is not among them; a mean-cycle template already wins it.
+3. Studying transients asks specific things of a model: autonomous rollouts that keep the right cycle and relax correctly from off-cycle states, one answer per data set, predictable behaviour under measurement noise, and modest data needs. Forecast accuracy on unperturbed walking is not among them: it is dominated by the mean cycle, which says little about the dynamics around it.
 4. Against these requirements, on realistic oscillators, SLIP and human gait, expressive models often blow up, settle on the wrong attractor or depend on the seed. Hankel-DMD, linear in delay coordinates, keeps the right cycle in 92% of cases, gives one convex answer, has an analysable and correctable bias and fits in seconds, with known limits (a neutral cycle amplitude, a need for transients).
 5. No model recovers transverse dynamics that passive on-cycle data do not contain, and 15-s gait trials do not identify stride-to-stride dynamics, so we recommend perturbation experiments and reporting finite-time response with its uncertainty.
 
@@ -100,9 +100,8 @@ Structure (restructured 2026-11-03; the mapping from the previous outline is at 
 - **(R3) Predictable behaviour under measurement noise.** Its estimates are insensitive to kinematic noise, or biased in a way that can be analysed and corrected.
 - **(R4) Modest data needs.** It works from tens of strides and a few channels, and shows when the data cannot support an answer.
 - **(R5) Cheap and inspectable.** It fits fast enough for cross-validation and bootstrap, with spectra and modes that can be checked.
-- **Forecast accuracy is not a requirement.** A phase-indexed mean-cycle template forecasts gait better than every model, which shows that the mean is easy and that forecast error measures the wrong thing.
-  - Template 0.17/0.27/0.39 against the spectral-submanifold model 0.28/0.38/0.62 **[have: FigS1]**.
-  - Hankel-DMD on the SSM's embedding with the companion paper's settings (rank 70, ridge 1e-4, stabilised): 0.21/0.35/0.46, better than the SSM, worse than the template. Rank 10 had limited it (0.27/0.40/0.54); a 0.6–1.5-s window gets 0.19/0.30/0.42–0.44, tying the template only at ≤ 0.5 s. **[have: FigS1; window test not in the figure]**
+- **Forecast accuracy is not a requirement.** Forecasting unperturbed gait is mostly forecasting the mean cycle: the cycle's shape, not the dynamics around it. A phase-aligned mean-cycle template, which has no state and cannot be started off the cycle or perturbed, gives the reference level for that part. It is a baseline, not a competing model: it answers none of R1–R5, so the dynamical models are not compared with it on forecast error.
+  - Reference levels, held-out forecast error at 0.7 / 2.7 / 4.7 s lead **[have: FigS1]**: mean-cycle template 0.17/0.27/0.39; spectral-submanifold model 0.28/0.38/0.62; Hankel-DMD on the SSM's embedding with the companion paper's settings (rank 70, ridge 1e-4, stabilised) 0.21/0.35/0.46 (rank 10: 0.27/0.40/0.54; a 0.6–1.5-s window: 0.19/0.30/0.42–0.44) **[window test not in the figure]**.
   - The companion paper's "DMD beats the template" (0.135 vs 0.314 at ½ stride) is about half template weakness: its template is aligned by a per-channel scale and offset fitted to ⅓ stride; offset-only alignment gives 0.207 / 0.222 (½, 1 stride), DMD still better on the median but in 11 of 17 subjects. Flag to Michael for the companion.
 
 Why these requirements are hard to meet on gait (learnability):
@@ -192,7 +191,7 @@ Why these requirements are hard to meet on gait (learnability):
 **Figure 4: Self-driving benchmark (R1)** **[have: Fig2_self_driving.jl]**.
 - (A) Phase portraits in the realistic regime (12 training cycles, 1% measurement noise): free runs from the end of the training window, every seed, degree or rank overlaid.
 - (B) Outcome after 30 free-running cycles, pooled over systems and regimes: ok / decays with the right rhythm / collapse / blow-up / wrong rhythm.
-- (C) Free-run error over the first cycle, per system, against the phase-aligned mean-cycle template.
+- (C) Free-run error over the first cycle, per system, with a phase-aligned mean-cycle template as a non-dynamical reference level.
 - Supplement: forecast baselines **[have: FigS1]**.
 
 **Figure 5: One convex answer (R1, R2)** **[have: Fig6_linear_affordances.jl]**.
@@ -207,8 +206,8 @@ Open: whether to add an LSTM (the gait-signatures model class) **[new]**. A revi
 
 ## 5. Linear models on real gait: what they show, and where the data stop
 
-**¶1. The transient lives in small deviations around a dominant mean cycle.** Most of gait variance lies in the mean cycle, and a template captures it better than any dynamical model. Modelling effort aimed at reproducing the mean is aimed at the part of gait that says least about how it is controlled.
-- 98–99% of the variance of a 15-s trial is the mean cycle (deviations: median 1.4% AB, 4.7% LF) **[have: Fig 6B]**.
+**¶1. The transient lives in small deviations around a dominant mean cycle.** Most of gait variance lies in the mean cycle. That part is the cycle's shape, not the dynamics around it: modelling effort aimed at reproducing it is aimed at the part of gait that says least about how it is controlled.
+- 95–99% of the variance of a 15-s trial is the mean cycle (deviations: median 1.4% AB, 4.7% LF) **[have: Fig 6B]**.
 - Whole-trajectory operator measures inherit this. Transient growth of delay-DMD at a ⅓-stride window is 71–75% (log scale) reproduced by the mean cycle alone, group ordering included, because harmonics of the cycle are non-orthogonal over a window shorter than the stride **[have: Fig 6C]**.
 
 **¶2. Identification success is not evidence of dynamics.** RNN-based gait signatures distinguish individuals robustly across speeds. Because they are stride-averaged summaries of an expressive model, it is unclear how much they reflect the mean cycle and how much the dynamics of deviations.
@@ -293,7 +292,7 @@ The paper is now organised as target → requirements → candidates → gait, n
 |---|---|
 | §2 Learnability | §3 ¶2–¶7 (now the reasons the requirements are hard on gait) |
 | §3 Benchmark (¶1–¶4, ¶6) | §4 ¶1–¶2, ¶8 |
-| §3 ¶5 Template caveat | §3 ¶1 (forecast accuracy is not a requirement) |
+| §3 ¶5 Template reference | §3 ¶1 (forecast accuracy is not a requirement) |
 | §4 ¶1, ¶2, ¶4, ¶5, ¶6 Floquet | §2 ¶1, ¶5, ¶4, ¶2, ¶6 |
 | §4 ¶3 Models that forecast well get multipliers wrong | §4 ¶3 |
 | §5 ¶1, ¶3, ¶4, ¶5 | §5 ¶1, ¶2, ¶3, ¶4 |

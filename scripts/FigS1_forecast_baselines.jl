@@ -1,15 +1,15 @@
 #!/usr/bin/env julia
-# Forecasting real gait: dynamical models vs a phase-aligned mean cycle
+# Forecasting unperturbed gait is mostly forecasting the mean cycle
 #
 # Every method gets the same information (z-scored joint angles up to sample
 # 1000 of each 15-s trial) and is scored on the same held-out targets with the
 # same instantaneous RMSE across the six channels (SSM_baselines.py).
 #
 #   (A) Median error against true lead time (seconds past the last observed
-#       sample). The tuned SSMLearnPy delay map and a rank-70 linear Hankel-DMD (ridge 1e-4, stabilised; companion settings)
-#       are both worse than repeating a phase-aligned mean training cycle.
-#   (B) Paired, per trial, at 2.7 s lead: points above the diagonal are trials
-#       where the SSM is worse than the template.
+#       sample) for the tuned SSMLearnPy delay map and a rank-70 linear Hankel-DMD (ridge 1e-4, stabilised; companion
+#       settings), with two non-dynamical reference levels: a phase-aligned mean training cycle and the last stride
+#       repeated. The template has no state and cannot be started off the cycle, so it is a reference, not a model.
+#   (B) Per trial, at 2.7 s lead: SSM error against the template's.
 #   (C-E) Knee angle in one representative trial per group.
 #
 # Inputs:  cache/ssm_baselines.npz          (SSM_baselines.py)
@@ -79,8 +79,7 @@ lines!(axB, [0, lim], [0, lim]; color = C_REF, linewidth = 0.8, linestyle = :das
 scatter!(axB, s_tpl, s_ssm; color = (C_TRUTH, 0.45), markersize = 3.5)
 frac_worse = mean(s_ssm .> s_tpl)
 text!(axB, 0.04lim, 0.96lim; align = (:left, :top), fontsize = 7,
-      text = @sprintf("SSM worse in %d%%\nof %d trials\n(%d off-scale)",
-                      round(Int, 100frac_worse), length(s_ssm), n_off))
+      text = @sprintf("%d trials\n(%d off-scale)", length(s_ssm), n_off))
 limits!(axB, 0, lim, 0, lim)
 panel_label!(gB, "B")
 
