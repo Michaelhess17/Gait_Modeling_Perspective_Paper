@@ -9,12 +9,16 @@
 #     against deviations of 0.12–0.28, so nearest-sample distance has a floor that made the truth's rate look
 #     start-dependent (0.70–0.84); measured to the curve it is 0.69 from every start, the multiplier. The data the
 #     models see are unchanged (same sampling).
-#   * A model's deviation is measured from its own SETTLED attractor (the last 3 cycles of a 30-cycle free run from the
-#     true on-cycle warm-up), not from its first 6 unperturbed cycles, which are still moving from the true cycle onto
-#     the model's own (the models' cycles sit as far from the true cycle as the perturbation).
+#   * A model's deviation is the distance from its perturbed run to its own UNPERTURBED run (from the true on-cycle
+#     warm-up at the same phase) within ±½ cycle of the same time, so phase shifts do not count (as for the truth) and
+#     whatever the model does without the perturbation cancels. That matters: each model's cycle sits 0.13–0.16 from the
+#     true cycle, as far as the perturbation, so both runs keep moving onto the model's own cycle, and DMD's waveform
+#     drifts slowly (higher harmonics ≈ 0.97–0.98 per cycle). Two alternatives are kept as diagnostics: the model's
+#     settled attractor (last 3 of 30 cycles; charges DMD for its drift: coupled FHN 0.18) and any point of its first 6
+#     unperturbed cycles (the earlier scoring; matches states from other times).
 #   * The perturbation is the original one (coupled FHN: unit 2 offset by 0.3 × its cycle SD; SLIP: as slip_decays.jl).
-#   The neural ODE is not refitted (mock-up): its cached free runs are scored against their own last 3 cycles; for DMD
-#   and ESN both references are computed, to check that stand-in.
+#   The neural ODE is not refitted (mock-up): its unperturbed runs are not cached, so its cached free runs are scored
+#   against their own last 3 cycles, a different and only provisional reference.
 # Multipliers of each model's own cycle (SLIP):
 #   DMD  eigenvalues of its operator in the cycle frame (nearest harmonic, rotation per step, |λ| per step), as Fig S6B
 #   ESN  eigenvalues of the monodromy (closed-loop Jacobians chained over one period of its own settled cycle), the one
@@ -37,6 +41,9 @@ function dist_curve(X, C; closed)
 end
 rate(e) = (e[5] / e[1])^(1 / 4)
 settled(F) = F[end-3SPC_F+1:end, :]
+"Distance from fc[t] to the unperturbed run f0 within ±half a cycle of the same time."
+dist_local(fc, f0) = (h = SPC_F ÷ 2; [dist_curve(fc[t:t, :], f0[max(1, t - h):min(size(f0, 1), t + h), :]; closed = false)[1]
+                                      for t in axes(fc, 1)])
 
 "DMD eigenvalues in the cycle frame: nearest harmonic n, rotation per cycle δ (°), |λ| per cycle."
 function cycle_frame(A)
@@ -66,21 +73,24 @@ function relax(sys)
         hp = chosen_hparams(sys, "decays", model)
         for seed in seeds
             pred = fit_predictor(sys, model, Ys, hp, seed, dt)
-            own = Float64[]; self = Float64[]
+            loc = Float64[]; setl = Float64[]; any6 = Float64[]
             for (T, T0) in zip(starts, ons)
                 fc = pred(std_(T)); f0 = pred(std_(T0))
-                if fc === nothing || f0 === nothing || maximum(abs, fc) > 50; push!(own, NaN); push!(self, NaN); continue; end
-                push!(own, rate(env(dist_curve(fc[1:5SPC_F, :], settled(f0); closed = false))))
-                push!(self, rate(env(dist_curve(fc[1:5SPC_F, :], settled(fc); closed = false))))
+                if fc === nothing || f0 === nothing || maximum(abs, fc) > 50
+                    push!(loc, NaN); push!(setl, NaN); push!(any6, NaN); continue
+                end
+                push!(loc, rate(env(dist_local(fc[1:5SPC_F, :], f0[1:6SPC_F, :]))))
+                push!(setl, rate(env(dist_curve(fc[1:5SPC_F, :], settled(f0); closed = false))))
+                push!(any6, rate(env(dist_curve(fc[1:5SPC_F, :], f0[1:6SPC_F, :]; closed = false))))
             end
-            push!(rows, (; model, seed, rates = own, rates_self = self, mock = false))
+            push!(rows, (; model, seed, rates = loc, rates_settled = setl, rates_any6 = any6, mock = false))
         end
     end
     for f in sort(filter(f -> occursin(Regex("^offv2_$(sys)_node_\\d+\\.jls\$"), f), readdir(cache_path("floquet"))))
         o = deserialize(cache_path("floquet/" * f))
         self = [fc === nothing || maximum(abs, fc) > 50 ? NaN :
                 rate(env(dist_curve(fc[1:5SPC_F, :], settled(fc); closed = false))) for fc in o.fcs]
-        push!(rows, (; model = "node", seed = o.seed, rates = self, rates_self = self, mock = true))
+        push!(rows, (; model = "node", seed = o.seed, rates = self, rates_settled = self, rates_any6 = fill(NaN, 4), mock = true))
     end
     (; sys, truth, rows)
 end
@@ -92,9 +102,10 @@ if abspath(PROGRAM_FILE) == @__FILE__
         r = relax(sys); R[sys] = r
         println("\n$sys  truth rate per start: ", fm(r.truth))
         for x in r.rows
-            @printf("%-4s seed %d%s | vs settled attractor %s  |err| %.3f | vs own late cycles %s  |err| %.3f\n", x.model, x.seed,
-                    x.mock ? " (cached runs, mock)" : "", fm(x.rates), mean(filter(isfinite, abs.(x.rates .- r.truth))),
-                    fm(x.rates_self), mean(filter(isfinite, abs.(x.rates_self .- r.truth))))
+            e(v) = mean(filter(isfinite, abs.(v .- r.truth)))
+            @printf("%-4s seed %d%s | same-time unperturbed run %s  |err| %.3f | settled %s (%.3f) | any of first 6 cycles %s (%.3f)\n",
+                    x.model, x.seed, x.mock ? " (cached runs, own last cycles: mock)" : "", fm(x.rates), e(x.rates),
+                    fm(x.rates_settled), e(x.rates_settled), fm(x.rates_any6), e(x.rates_any6))
         end
     end
     # multipliers of each model's own cycle, SLIP
