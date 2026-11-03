@@ -26,6 +26,8 @@ Section and figure numbers refer to ../OUTLINE.md.
   from tuned/decay results), `FigS4_offcycle.jl`
 - `dmd_window_return.jl` (`-t 16`): can DMD predict the return to the true cycle on coupled FHN with a longer delay
   window or more decays (Fig 5A follow-up)
+- `matched_data_return.jl` (`-t 16`, → cache/fig6/matched_data.jls): DMD and ESN at 10, 30, 100 decays, return to the
+  true coupled-FHN cycle (Fig 3D candidate)
 - `FigS7_validation.jl` (`validation_criteria.jl`, `-t 16`, → cache/selfdrive/validation_criteria.jls): one-step
   against rollout validation errors on the DMD and ESN tuning grids, and what each criterion would choose
 - `FigS6_lattice.jl` (`figS6_slip_data.jl` → cache/figS6/slip.jls; `gait_lattice.jl` → cache/fig5/gait_lattice.jls;
