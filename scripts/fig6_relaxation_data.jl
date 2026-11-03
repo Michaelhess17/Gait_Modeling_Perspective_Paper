@@ -1,24 +1,21 @@
 #!/usr/bin/env julia
 # Data for Figure 5 (file Fig6_linear_affordances.jl; OUTLINE.md §4 ¶2–¶4): off-cycle relaxation of the decay-trained
-# models (the fits of offcycle_v2.jl, refitted here for DMD and ESN; the neural ODE from its cached runs) and the
-# multipliers of each model's own cycle on SLIP.
+# models (the free runs cached by offcycle_v2.jl, for every model) and the multipliers of each model's own cycle on
+# SLIP (DMD and ESN refitted).
 #
-# Scoring, changed from offcycle_v2.jl (2026-11-03):
-#   * Distance to a reference curve is measured to the curve through its samples (nearest point on the polyline),
-#     not to the nearest sample. On coupled FHN consecutive cycle samples are up to 0.53 apart during the jumps,
-#     against deviations of 0.12–0.28, so nearest-sample distance has a floor that made the truth's rate look
-#     start-dependent (0.70–0.84); measured to the curve it is 0.69 from every start, the multiplier. The data the
-#     models see are unchanged (same sampling).
-#   * A model's deviation is the distance from its perturbed run to its own UNPERTURBED run (from the true on-cycle
-#     warm-up at the same phase) within ±½ cycle of the same time, so phase shifts do not count (as for the truth) and
-#     whatever the model does without the perturbation cancels. That matters: each model's cycle sits 0.13–0.16 from the
-#     true cycle, as far as the perturbation, so both runs keep moving onto the model's own cycle, and DMD's waveform
-#     drifts slowly (higher harmonics ≈ 0.97–0.98 per cycle). Two alternatives are kept as diagnostics: the model's
-#     settled attractor (last 3 of 30 cycles; charges DMD for its drift: coupled FHN 0.18) and any point of its first 6
-#     unperturbed cycles (the earlier scoring; matches states from other times).
+# Scoring, changed from offcycle_v2.jl (2026-11-03): relaxation to the TRUE cycle from the real perturbed state.
+#   * Every model is warmed up on the true perturbed trajectory (offcycle_v2.jl's free runs, cached for all models,
+#     neural ODE included) and its deviation is the distance to the true cycle, as for the truth, so model and truth are
+#     scored identically and nothing model-specific enters the reference.
+#   * Distance is measured to the curve through the cycle's samples (nearest point on the polyline), not to the nearest
+#     sample: on coupled FHN consecutive cycle samples are up to 0.53 apart during the jumps, against deviations of
+#     0.12–0.28, so nearest-sample distance has a floor that made the truth's rate look start-dependent (0.70–0.84);
+#     measured to the curve it is 0.69 from every start, the multiplier. The data the models see are unchanged.
 #   * The perturbation is the original one (coupled FHN: unit 2 offset by 0.3 × its cycle SD; SLIP: as slip_decays.jl).
-#   The neural ODE is not refitted (mock-up): its unperturbed runs are not cached, so its cached free runs are scored
-#   against their own last 3 cycles, a different and only provisional reference.
+#   * Also recorded: each run's end offset, the distance of its last 3 of 30 cycles from the true cycle. A model's
+#     distance to the true cycle cannot fall below it, and on coupled FHN it is as large as the perturbation.
+#   (Measuring a model from its own unperturbed run instead isolates the response to the perturbation but depends on
+#   which reference is taken, and does not ask whether the model predicts the real return.)
 # Multipliers of each model's own cycle (SLIP):
 #   DMD  eigenvalues of its operator in the cycle frame (nearest harmonic, rotation per step, |λ| per step), as Fig S6B
 #   ESN  eigenvalues of the monodromy (closed-loop Jacobians chained over one period of its own settled cycle), the one
@@ -41,9 +38,6 @@ function dist_curve(X, C; closed)
 end
 rate(e) = (e[5] / e[1])^(1 / 4)
 settled(F) = F[end-3SPC_F+1:end, :]
-"Distance from fc[t] to the unperturbed run f0 within ±half a cycle of the same time."
-dist_local(fc, f0) = (h = SPC_F ÷ 2; [dist_curve(fc[t:t, :], f0[max(1, t - h):min(size(f0, 1), t + h), :]; closed = false)[1]
-                                      for t in axes(fc, 1)])
 
 "DMD eigenvalues in the cycle frame: nearest harmonic n, rotation per cycle δ (°), |λ| per cycle."
 function cycle_frame(A)
@@ -65,34 +59,20 @@ function esn_multipliers(m, s0)
 end
 
 function relax(sys)
-    dt = sys_dt(sys); Ys, μ, σ = raw_training(sys, "decays"; seed = 1); std_(X) = (X .- μ) ./ σ
-    Ct = std_(cycle_states(sys)); starts = true_starts(sys); ons = true_oncycle(sys)
-    truth = [rate(env(dist_curve(std_(T)[W_WARM+1:end, :], Ct; closed = true))) for T in starts]
+    Ys, μ, σ = raw_training(sys, "decays"; seed = 1); std_(X) = (X .- μ) ./ σ
+    Ct = std_(cycle_states(sys)); starts = true_starts(sys)
+    Et = [env(dist_curve(std_(T)[W_WARM+1:end, :], Ct; closed = true)) for T in starts]
     rows = NamedTuple[]
-    for (model, seeds) in (("dmd", 1:1), ("esn", 1:4))
-        hp = chosen_hparams(sys, "decays", model)
-        for seed in seeds
-            pred = fit_predictor(sys, model, Ys, hp, seed, dt)
-            loc = Float64[]; setl = Float64[]; any6 = Float64[]
-            for (T, T0) in zip(starts, ons)
-                fc = pred(std_(T)); f0 = pred(std_(T0))
-                if fc === nothing || f0 === nothing || maximum(abs, fc) > 50
-                    push!(loc, NaN); push!(setl, NaN); push!(any6, NaN); continue
-                end
-                push!(loc, rate(env(dist_local(fc[1:5SPC_F, :], f0[1:6SPC_F, :]))))
-                push!(setl, rate(env(dist_curve(fc[1:5SPC_F, :], settled(f0); closed = false))))
-                push!(any6, rate(env(dist_curve(fc[1:5SPC_F, :], f0[1:6SPC_F, :]; closed = false))))
-            end
-            push!(rows, (; model, seed, rates = loc, rates_settled = setl, rates_any6 = any6, mock = false))
+    for model in ("dmd", "esn", "node")
+        for f in sort(filter(f -> occursin(Regex("^offv2_$(sys)_$(model)_\\d+\\.jls\$"), f), readdir(cache_path("floquet"))))
+            o = deserialize(cache_path("floquet/" * f))
+            ok(fc) = fc !== nothing && maximum(abs, fc) <= 50
+            E = [ok(fc) ? env(dist_curve(fc[1:5SPC_F, :], Ct; closed = true)) : fill(NaN, 5) for fc in o.fcs]
+            off = [ok(fc) ? sqrt(mean(abs2, dist_curve(settled(fc), Ct; closed = true))) : NaN for fc in o.fcs]
+            push!(rows, (; model, seed = o.seed, rates = rate.(E), dev0 = first.(E), dev4 = last.(E), offset = off))
         end
     end
-    for f in sort(filter(f -> occursin(Regex("^offv2_$(sys)_node_\\d+\\.jls\$"), f), readdir(cache_path("floquet"))))
-        o = deserialize(cache_path("floquet/" * f))
-        self = [fc === nothing || maximum(abs, fc) > 50 ? NaN :
-                rate(env(dist_curve(fc[1:5SPC_F, :], settled(fc); closed = false))) for fc in o.fcs]
-        push!(rows, (; model = "node", seed = o.seed, rates = self, rates_settled = self, rates_any6 = fill(NaN, 4), mock = true))
-    end
-    (; sys, truth, rows)
+    (; sys, truth = rate.(Et), dev0 = first.(Et), dev4 = last.(Et), rows)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
@@ -100,12 +80,10 @@ if abspath(PROGRAM_FILE) == @__FILE__
     R = Dict{String, Any}()
     for sys in ("cfhn", "slip")
         r = relax(sys); R[sys] = r
-        println("\n$sys  truth rate per start: ", fm(r.truth))
+        println("\n$sys  truth rate per start: ", fm(r.truth), " | deviation cycle 0 ", fm(r.dev0), ", cycle 4 ", fm(r.dev4))
         for x in r.rows
-            e(v) = mean(filter(isfinite, abs.(v .- r.truth)))
-            @printf("%-4s seed %d%s | same-time unperturbed run %s  |err| %.3f | settled %s (%.3f) | any of first 6 cycles %s (%.3f)\n",
-                    x.model, x.seed, x.mock ? " (cached runs, own last cycles: mock)" : "", fm(x.rates), e(x.rates),
-                    fm(x.rates_settled), e(x.rates_settled), fm(x.rates_any6), e(x.rates_any6))
+            @printf("%-4s seed %d | rate to the true cycle %s  |err| %.3f | deviation cycle 0 %s, cycle 4 %s | end offset %s\n",
+                    x.model, x.seed, fm(x.rates), mean(filter(isfinite, abs.(x.rates .- r.truth))), fm(x.dev0), fm(x.dev4), fm(x.offset))
         end
     end
     # multipliers of each model's own cycle, SLIP
