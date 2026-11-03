@@ -2,14 +2,13 @@
 # Figure 5 (file name from the earlier numbering) — Off-cycle relaxation and the multipliers of each model's own cycle
 # (OUTLINE.md §4 ¶2–¶4). Data: scripts/fig6_relaxation_data.jl (cache/fig6/relaxation.jls).
 #
-#   (A, B) Relaxation to the true cycle from real perturbed states: decay-trained models (10 decays × 3 cycles, the same
-#   data for every model), warmed up on the true perturbed trajectory and run freely, from 4 off-cycle starts ordered by
-#   the truth's rate (black ticks). Rate = (deviation over the 5th cycle / over the 1st)^(1/4), deviation = distance to the
-#   curve through the true cycle's samples, for model and truth alike. Each fit's rates from the same starts are joined by
-#   a thin line: Hankel-DMD is one least-squares fit (no seed), ESN 4 seeds and neural ODE 3 seeds at fixed tuned settings.
-#   |error| = mean over starts of |model − truth|, range over seeds. Offset: distance of each model's settled cycle from
-#   the true cycle (median), the floor its deviation cannot go below; against the truth's initial deviation (text).
-#   (A) Coupled FHN, per cycle. (B) SLIP, centre-of-mass (y, ẋ, ẏ), per step.
+#   (A, B) Return to the true cycle from real perturbed states: decay-trained models (10 decays × 3 cycles, the same
+#   data for every model), warmed up on the true perturbed trajectory and run freely. Deviation = distance to the curve
+#   through the true cycle's samples, RMS over each cycle after the warm-up, for model and truth alike; median over 4
+#   starts (kicked at 4 phases of the cycle). Black: truth. One line per fit: Hankel-DMD is one least-squares fit (no
+#   seed), ESN 4 seeds, neural ODE 3 seeds at fixed tuned settings. Triangles at the right: distance of each fit's settled
+#   cycle from the true cycle, the floor its deviation cannot go below. (A) Coupled FHN, per cycle: every model's cycle
+#   is displaced by as much as the perturbation, so its runs stall. (B) SLIP, centre-of-mass (y, ẋ, ẏ), per step.
 #   (C) SLIP: multipliers of each model's own cycle, as rotation per step against modulus per step. DMD: eigenvalues
 #   of its operator in the cycle frame (rotation from the nearest harmonic); the one next to the 8th harmonic (square)
 #   matches the exact multiplier (star). ESN: eigenvalues of the monodromy of its own settled cycle (closed-loop Jacobians chained
@@ -27,31 +26,29 @@ const D = deserialize(joinpath(ROOT, "cache", "fig6", "relaxation.jls"))
 
 fig = Figure(size = (COL2, 70MM)); g = fig[1, 1] = GridLayout()
 
-# ── A, B: per start, per fit ─────────────────────────────────────────────────
-MODELS = [("dmd", "Hankel-DMD\n(one fit)", CAT[1]), ("esn", "ESN\n(4 seeds)", CAT[2]), ("node", "neural ODE\n(3 seeds)", CAT[3])]
-SYSTEMS = [("cfhn", "A", "Coupled FHN: runs stall on displaced cycles", "per cycle", (0.3, 1.2), 0.4:0.1:1.0),
-           ("slip", "B", "SLIP: all models track the return", "per step", (0.42, 1.06), 0.5:0.1:1.0)]
-for (c, (sys, L, title, per, (lo, hi), yt)) in enumerate(SYSTEMS)
-    r = D.relax[sys]; ord = sortperm(collect(zip(round.(r.truth, digits = 2), 1:4))); tp = r.truth[ord]
-    ax = Axis(g[1, c]; ylabel = "Relaxation rate " * per * " (first 4)", title, xticks = (1:3, [m[2] for m in MODELS]),
-              yticks = yt, limits = (0.45, 3.55, lo, hi))
-    for (k, (m, _, col)) in enumerate(MODELS)
-        rows = [x for x in r.rows if x.model == m]; xs = k .+ ((1:4) .- 2.5) .* 0.2
-        linesegments!(ax, vec([xs' .- 0.07; xs' .+ 0.07]), repeat(tp, inner = 2); color = C_TRUTH, linewidth = 1.4)
-        for (s, x) in enumerate(rows)
-            dx = length(rows) == 1 ? 0.0 : (s - (length(rows) + 1) / 2) * 0.025
-            ps = clamp.(x.rates[ord], lo + 0.01, hi - 0.01)
-            lines!(ax, xs .+ dx, ps; color = (col, 0.5), linewidth = 0.6)
-            scatter!(ax, xs .+ dx, ps; color = col, markersize = 3.8, strokecolor = :white, strokewidth = 0.3)
-        end
-        e = [mean(filter(isfinite, abs.(x.rates[ord] .- tp))) for x in rows]
-        er = unique(round.(extrema(e), digits = 2))
-        offs = median(reduce(vcat, [filter(isfinite, x.offset) for x in rows]))
-        text!(ax, k, lo + 0.015 * (hi - lo); text = "|error|\n" * join([@sprintf("%.2f", v) for v in er], "–") *
-              @sprintf("\noffset %.2f", offs), fontsize = 6.5, color = col, align = (:center, :bottom))
+# ── A, B: distance to the true cycle after a real perturbation ───────────────
+MODELS = [("dmd", "Hankel-DMD", CAT[1]), ("esn", "ESN seeds", CAT[2]), ("node", "neural-ODE seeds", CAT[3])]
+SYSTEMS = [("cfhn", "A", "Coupled FHN: the models stall", "Cycles after the perturbation", (0.018, 0.7),
+            [0.02, 0.05, 0.1, 0.2, 0.5]),
+           ("slip", "B", "SLIP: all models track the return", "Steps after the perturbation", (0.07, 1.2), [0.1, 0.2, 0.5, 1.0])]
+medenv(Es) = [median(filter(isfinite, [e[k] for e in Es])) for k in 1:5]
+for (c, (sys, L, title, xlab, ylims, yt)) in enumerate(SYSTEMS)
+    r = D.relax[sys]
+    ax = Axis(g[1, c]; xlabel = xlab, ylabel = c == 1 ? "Distance to the true cycle (SD units)" : "", title, yscale = log10,
+              xticks = 0:4, yticks = (yt, string.(yt)), limits = (-0.25, 4.7, ylims...))
+    for (m, _, col) in MODELS, x in [x for x in r.rows if x.model == m]
+        lines!(ax, 0:4, medenv(x.envs); color = (col, m == "dmd" ? 1.0 : 0.75), linewidth = m == "dmd" ? 1.6 : 0.9)
+        scatter!(ax, [4.42], [median(filter(isfinite, x.offset))]; marker = :ltriangle, color = col, markersize = 6)
     end
-    text!(ax, 3.52, hi - 0.01 * (hi - lo); text = (c == 1 ? "black: truth, 4 starts, fastest → slowest\n" : "") *
-          @sprintf("truth's initial deviation %.2f–%.2f", extrema(r.dev0)...), fontsize = 6.5, color = C_REF, align = (:right, :top))
+    te = medenv(r.truth_envs)
+    lines!(ax, 0:4, te; color = C_TRUTH, linewidth = 1.8); scatter!(ax, 0:4, te; color = C_TRUTH, markersize = 4)
+    offs = reduce(vcat, [filter(isfinite, x.offset) for x in r.rows])
+    text!(ax, 4.6, ylims[2] / 1.06; text = @sprintf("perturbation %.2f–%.2f\nmodel cycle offsets %.2f–%.2f", extrema(r.dev0)..., extrema(offs)...),
+          fontsize = 6.5, color = C_REF, align = (:right, :top))
+    c == 1 && axislegend(ax, vcat([LineElement(color = C_TRUTH, linewidth = 1.8)], [LineElement(color = col, linewidth = 1.2) for (_, _, col) in MODELS],
+                                  [MarkerElement(marker = :ltriangle, color = C_REF, markersize = 6)]),
+                         vcat(["truth"], [lab for (_, lab, _) in MODELS], ["settled offset"]);
+                         position = :lb, framevisible = false, labelsize = 6.5, padding = (2, 2, 2, 2), rowgap = 0)
     plabel!(g[1, c], L)
 end
 

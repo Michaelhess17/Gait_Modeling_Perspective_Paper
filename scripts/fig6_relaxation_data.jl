@@ -69,10 +69,10 @@ function relax(sys)
             ok(fc) = fc !== nothing && maximum(abs, fc) <= 50
             E = [ok(fc) ? env(dist_curve(fc[1:5SPC_F, :], Ct; closed = true)) : fill(NaN, 5) for fc in o.fcs]
             off = [ok(fc) ? sqrt(mean(abs2, dist_curve(settled(fc), Ct; closed = true))) : NaN for fc in o.fcs]
-            push!(rows, (; model, seed = o.seed, rates = rate.(E), dev0 = first.(E), dev4 = last.(E), offset = off))
+            push!(rows, (; model, seed = o.seed, rates = rate.(E), dev0 = first.(E), dev4 = last.(E), offset = off, envs = E))
         end
     end
-    (; sys, truth = rate.(Et), dev0 = first.(Et), dev4 = last.(Et), rows)
+    (; sys, truth = rate.(Et), dev0 = first.(Et), dev4 = last.(Et), truth_envs = Et, rows)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

@@ -214,7 +214,7 @@ Why these requirements are hard to meet on gait (learnability):
 - Supplement: forecast baselines **[have: FigS1]**.
 
 **Figure 5: One fit, no seed spread; and what each model's cycle has learned (R1, R3)** **[have: Fig6_linear_affordances.jl, fig6_relaxation_data.jl]**.
-- (A, B) Off-cycle relaxation per start and per fit over the first 4 cycles, coupled FHN and SLIP (centre of mass): DMD (one fit) against ESN and neural-ODE seeds, truth per start (ordered by the truth's rate); every run scored by its distance to the true cycle, with each model's cycle offset. Stuart–Landau dropped (too simple; DMD reproducibly wrong at 10 decays).
+- (A, B) Distance to the true cycle over the 4 cycles after a real perturbation (median over 4 starts), coupled FHN and SLIP (centre of mass): truth, DMD (one fit), ESN and neural-ODE seeds (one line each), and each fit's settled-cycle offset as a floor. Per-start rates and |error| are in the text and Table 1. Stuart–Landau dropped (too simple; DMD reproducibly wrong at 10 decays).
 - (C) SLIP: multipliers of each model's own cycle, rotation against modulus per step: DMD's operator eigenvalues in the cycle frame (the one next to the 8th harmonic at the exact multiplier), the ESN's monodromy eigenvalues, the lattice fit; neural ODE pending a refit. Option: a resolvent-gain curve of DMD on the unit circle to show the harmonics; it cannot show the sideband, which sits 0.04 cycles per step from the 8th harmonic's peak.
 - The SLIP bias correction moved to Fig 2B, C; FB/TLS stay in the text only.
 - Optional later: a residual-verified (ResDMD) spectrum on gait or SLIP.
