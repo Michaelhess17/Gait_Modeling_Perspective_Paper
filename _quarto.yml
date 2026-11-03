@@ -1,5 +1,7 @@
 project:
   type: manuscript
+  render:
+    - index.qmd
 
 manuscript:
   article: index.qmd
@@ -11,7 +13,9 @@ format:
       - pdf
     comments:
       hypothesis: true
-  pdf: default
+    default-image-extension: png
+  pdf:
+    default-image-extension: pdf
 
 execute:
   enabled: false

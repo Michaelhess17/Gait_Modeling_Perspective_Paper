@@ -1,5 +1,5 @@
 ---
-title: "The dynamical modeling gap in gait biomechanics: why individual-specific models of walking are hard, and what we can learn from the failures"
+title: "Transients, not stability: what a data-driven model of walking must do, and why linear operator models do it best"
 authors:
   - name: Michael Hess
     affiliation: Emory University, Department of Biology
@@ -9,222 +9,187 @@ authors:
     affiliation: Emory University, Departments of Biology & Physics
     corresponding: false
 bibliography: references.bib
-jupyter: julia-1.12
-engine: julia
+crossref:
+  custom:
+    - kind: float
+      key: suppfig
+      latex-env: suppfig
+      reference-prefix: Figure S
+      caption-prefix: Figure S
+      space-before-numbering: false
+      latex-list-of-description: Supplementary Figure
 ---
 
-```{julia}
-#| output: false
-using Logging
-_silent(f) = redirect_stdout(devnull) do
-    with_logger(NullLogger()) do
-        f()
-    end
-end
-```
+<!--
+Working draft built from OUTLINE.md (restructured 2026-11-03). Each paragraph is its outline topic sentence; the
+evidence, numbers and references for it are in the outline paragraph named in the comment. Figures are the current
+renders (scripts in the code-availability table); captions are templates, with open items as TODO comments.
+Figure files keep their old numbers: Fig 1 = Fig4_nonnormality, 2 = Fig3_floquet_maps, 3 = Fig1_learnability,
+4 = Fig2_self_driving, 5 = Fig6_linear_affordances, 6 = Fig5_gait_variability.
+-->
 
 ## Abstract
 
-Building predictive, individual-specific dynamical models of walking is a central goal of gait biomechanics, with applications ranging from fall-risk prediction to targeted rehabilitation. Despite decades of progress in data-driven dynamical systems methods, no approach reliably produces such models from the short, noisy kinematic recordings available in clinical settings. We argue that this is not a failure of any single method but reflects a constellation of fundamental difficulties that arise when fitting autonomous dynamical models to biological oscillatory data. Through a series of computational demonstrations on both simulated oscillators and real gait kinematics, we show that: (i) even the simplest limit cycle produces a profoundly non-normal operator under delay-embedded Dynamic Mode Decomposition (DMD)---with eigenvector condition numbers and Henrici departures far from the normal-matrix baseline---and that this non-normality grows by orders of magnitude in the higher-dimensional operators fitted to real gait; (ii) neural ordinary differential equations consistently converge to predicting the mean trajectory rather than learning the oscillation, across multiple architectures and random seeds; (iii) piecewise-linear phase-partitioned models compound errors at region boundaries and fragment data into subsets too small for reliable estimation; and (iv) echo state networks recover Floquet multipliers with striking accuracy for clean simulated systems but fail completely on real walking data. These failures share a common root: the mismatch between the time-invariant, autonomous models we fit and the time-varying, driven dynamics of actual locomotion. We argue that this mismatch---manifested as non-normality in the fitted operator---is itself a meaningful dynamical signature. In a companion paper [@hess2026nonnormality], we show that the degree of non-normality in delay-embedded DMD operators discriminates able-bodied from post-stroke gait and encodes clinically relevant aspects of locomotor coordination. The present perspective provides the theoretical and computational foundation for that interpretation: the very structure that makes limit cycles hard to decompose also encodes information about how the system coordinates itself.
-
-**Keywords:** gait biomechanics, dynamical systems, limit cycles, Dynamic Mode Decomposition, neural ODEs, reservoir computing, non-normality, Floquet theory, stroke rehabilitation
+Gait dynamics are usually summarised by asymptotic stability (Floquet multipliers), and data-driven dynamical models (neural ODEs, reservoir computers, sparse regression, spectral-submanifold reductions) are increasingly fitted to walking. But walking never reaches the asymptotic regime: it is perturbed every stride and corrected by noisy feedback, so what governs it is the transient response over the next few strides, which eigenvalues of non-normal return maps miss and which short, noisy records estimate poorly. Studying transients asks specific things of a model: autonomous rollouts that keep the right cycle and relax correctly from off-cycle states, one answer per data set, predictable behaviour under measurement noise, and modest data needs. Forecast accuracy is not among them; a mean-cycle template already wins it. Against these requirements, on realistic oscillators, SLIP and human gait, expressive models often blow up, settle on the wrong attractor or depend on the seed. Hankel-DMD, linear in delay coordinates, keeps the right cycle in 92% of cases, gives one convex answer, has an analysable and correctable bias and fits in seconds, with known limits (a neutral cycle amplitude, a need for transients). No model recovers transverse dynamics that passive on-cycle data do not contain, and 15-s gait trials do not identify stride-to-stride dynamics, so we recommend perturbation experiments and reporting finite-time response with its uncertainty.
 
 ## Introduction
 
-Walking looks simple but requires remarkably sophisticated coordination. Each stride involves dozens of muscles acting across multiple joints on both legs, timed to maintain balance, absorb ground reaction forces, and propel the body forward. When this coordination is disrupted---by stroke, Parkinson's disease, ageing, or musculoskeletal injury---the consequences extend well beyond slower speed or asymmetric steps. The *quality* of the coordination changes: how the system responds to perturbation, how the two limbs influence each other, and how robustly the pattern adapts to varying conditions.
+<!-- OUTLINE §1 ¶1 --> Walking is regulated stride by stride, and understanding how the nervous system and the body jointly produce, and correct, each stride is central to explaining gait impairment and designing interventions.
 
-A central ambition of gait biomechanics is to build *individual-specific dynamical models* of walking: models that capture not just the average gait pattern but the perturbation response, stability, and adaptability of a particular person's locomotor system. Such models would enable principled fall-risk assessment, targeted rehabilitation, and quantitative evaluation of therapeutic interventions. Despite two decades of rapid progress in data-driven dynamical systems methods, this ambition remains largely unrealised.
+<!-- OUTLINE §1 ¶2 --> The oldest route to gait dynamics is mechanistic: low-dimensional templates and detailed musculoskeletal simulations that generate walking from physical principles. These reproduce typical gait but are hard to fit to an individual, and they often fail to predict changes in kinematics [@winner2023].
 
-Why this matters clinically is straightforward: clinicians do not intervene on population means, they intervene on individuals. Two patients can present with similar stride time, speed, and asymmetry, yet differ dramatically in perturbation sensitivity, compensation strategy, and adaptability to context changes (speed, incline, cognitive load, fatigue). A model that only reproduces nominal trajectories misses the latent structure that often determines whether a patient improves, plateaus, or decompensates. This is why dynamical quantities---how perturbations evolve, how quickly errors are corrected, and along which coordination channels corrections occur---are potentially more actionable than descriptive kinematics alone [@bruijn2013; @dingwell2000; @dingwell2006].
+<!-- OUTLINE §1 ¶3 --> A second tradition summarises gait dynamics with stability and variability statistics computed directly from kinematics, not with a generative model [@dingwell2000; @dingwell2006; @bruijn2013].
 
-At the same time, the field now has multiple partially successful modeling paradigms, each illuminating part of the problem while leaving major gaps. Classical limit-cycle analyses offer mechanistic interpretation but demand long, clean, periodic datasets [@bruijn2013; @revzen2012]. Flexible sequence models can classify or forecast well, but often sacrifice mechanistic interpretability [@winner2023]. This perspective takes the view that the bottleneck is not lack of model classes; it is the mismatch between what current models assume and what human walking data actually contain.
+<!-- OUTLINE §1 ¶4 --> A third, newer tradition fits dynamical models to gait data. The methods range from linear step-to-step maps to deep sequence models, and each trades interpretability for expressiveness differently [@revzen2012; @winner2023].
 
-### The state of gait stability measurement
+<!-- OUTLINE §1 ¶5 --> The stability tradition and most model-based work aim at the same quantity, asymptotic stability, in a system that never reaches the asymptotic regime. And there is little systematic evidence on whether expressive data-driven models recover the dynamics of walking, as opposed to reproducing its average shape.
 
-The dominant framework treats walking as a periodic orbit---a limit cycle---and asks whether perturbations grow or decay. @bruijn2013 provided a comprehensive review of gait stability measures and their validity, identifying two main families:
+<!-- OUTLINE §1 ¶6 --> We argue that for a gait perturbed and noisily corrected every stride, the right target is the transient, finite-time response, not asymptotic stability. We derive what a data-driven model must do to study that response, and why gait data make it hard. We test expressive and linear models against these requirements and find that linear models in Hankel (delay) coordinates meet them best. Finally, we show what linear models reveal on real gait, and where 15-s trials stop every model.
 
-**Floquet multipliers** quantify orbital stability by linearising the dynamics around a periodic orbit and measuring how perturbations map through one complete stride cycle. In principle, they provide the complete picture: not just whether perturbations decay, but *how fast* and *in which directions*. In practice, reliable estimation requires prohibitively large datasets. @revzen2008 needed over 10,000 strides of cockroach running data to obtain stable estimates---orders of magnitude more than the 15--50 strides available in a typical clinical walking trial. Floquet analysis also demands strict periodicity and a reliable phase estimator [@revzen2012], both of which are problematic for the irregular, variable walking patterns of neurologically impaired individuals.
+## Asymptotic stability is the wrong target for gait
 
-**The maximum Lyapunov exponent** ($\lambda_S$) relaxes the periodicity assumption and has emerged as the best-validated single predictor of fall risk [@dingwell2000; @bruijn2013]. But it provides only a scalar: how fast do nearby trajectories pull apart? It says nothing about *which directions* are unstable, *at what frequencies* the system responds, or *how the two limbs talk to each other*. These are precisely the questions that matter for understanding and treating locomotor impairment after stroke.
+<!-- OUTLINE §2 ¶1 --> Floquet multipliers answer a precise question: how fast, asymptotically, a perturbation shrinks per cycle. That made them the natural stability measure for gait [@dingwell2006].
 
-Both measures share a deeper conceptual issue: they assume the system is autonomous---evolving under its own dynamics without external input. Walking is not autonomous. It is continuously driven by descending neural commands, modulated by sensory feedback, and stabilised by reflexes [@ting2007]. The common finding that $\lambda_S$ is positive (local divergence) despite stable walking is a direct consequence: Lyapunov analysis of the autonomous reconstruction picks up the driving, not a genuine instability [@dingwell2006].
+<!-- OUTLINE §2 ¶2 --> Gait is perturbed every stride by intrinsic noise and by the environment, so what governs behaviour is the response over the next one to three strides, the transient. Asymptotic multipliers can miss it entirely.
 
-### Individual-specific dynamics and the modeling gap
+<!-- OUTLINE §2 ¶3 --> When every stride is kicked and every stride is corrected, the deviation at any stride is the sum of the decaying responses to all earlier kicks. Stride-to-stride variability is the transient response, sampled continuously, and how deviations are corrected reveals the control strategy.
 
-@winner2023 demonstrated that individual-specific dynamical structure *exists* in walking data: their LSTM-based "gait signatures" framework showed that a person's walking dynamics are identifiable and consistent across conditions, differing systematically between able-bodied and post-stroke populations. But what do these learned representations correspond to in dynamical systems terms? The neural network is a black box. We know the signatures are there, but we do not know what they mean mechanistically---which aspects of the coordination they capture, or how they relate to the perturbation response and stability properties that matter clinically.
+<!-- OUTLINE §2 ¶4 --> Even for a textbook Van der Pol oscillator, the monodromy matrix and the stride-to-stride return map are non-normal: their eigenvectors are far from orthogonal, and within-cycle variational dynamics amplify perturbations transiently before they decay (@fig-nonnormal) [@trefethen2005; @hess2026nonnormality].
 
-This is the *modeling gap*: we have methods that can detect individual dynamical structure (black-box neural networks) and methods that provide mechanistic interpretability (Floquet analysis, DMD eigenvalues) but cannot reliably extract that structure from real gait data. The gap exists because the interpretable methods encounter a constellation of fundamental difficulties when applied to oscillatory biological data---difficulties that the fixed-point intuition underlying most data-driven methods does not prepare practitioners for.
+![**Eigenvalues are not the whole story: oscillators amplify perturbations before they decay.** Ground truth from forward-integrated variational equations, no fitting: coupled FitzHugh–Nagumo (FHN), Van der Pol (nonlinearity 0.1–2.0), Stuart–Landau, and SLIP walking open loop and with speed feedback. Norms are in observed coordinates (each variable scaled by its SD along the cycle), worst case over the phase at which the perturbation arrives. (A) Distance from the cycle after a perturbation, relative to its size, against time since the perturbation; dashed, the multiplier's prediction. (B) Peak within-cycle transverse amplification against the transverse multiplier; shaded, multipliers reported for human walking (≈0.3–0.8). (C) Stride to stride: worst-case growth of the n-stride transverse map against the eigenvalue prediction ρⁿ (dashed). (D) Deviation from the unperturbed trajectory after n cycles, including lasting phase shifts; the multiplier along the cycle is 1, so the eigenvalue prediction is 1.](figures/Fig4_nonnormality){#fig-nonnormal fig-alt="Four panels: perturbation size against time for several oscillators, peak amplification against multiplier, n-stride growth against the eigenvalue prediction, and lasting deviation after n cycles."}
 
-Recent progress in robot locomotion reinforces both the promise and the caution. Reinforcement-learning-based controllers can produce highly agile legged behaviors in simulation and hardware [@hwangbo2019], and imitation-learning pipelines can reproduce realistic motion patterns from demonstrations [@peng2018deepmimic]. These are important achievements, and they show that rich locomotor behavior can be synthesized from data-driven objectives. But they do not by themselves solve the biomechanical interpretability problem relevant to clinical gait: policy success does not imply that the learned internal representation corresponds to physiologically meaningful control structure.
+<!-- TODO Fig 1: (A) the label "|μ|^τ" is drawn with a literal caret; μ is used both for the Van der Pol parameter and
+for the multiplier (legend "μ = 1 (|μ| = 9e-04)") — rename the parameter. Stuart–Landau is |μ| = 0.53 here but the
+relaxation truth elsewhere is 0.58–0.60: check that these are different quantities and say so. -->
 
-Moreover, generalization remains a central concern. Deep RL is known to be brittle under distribution shift and out-of-distribution evaluation [@packer2018assessing; @cobbe2019procgen]. In gait terms, this means that a model can perform well on the training manifold (specific treadmill speeds, specific perturbation regimes, specific subject cohorts) yet fail when conditions shift. For a clinical biomarker or decision-support model, this limitation is not a minor technical detail---it is a primary validity threat.
+<!-- OUTLINE §2 ¶5 --> Estimating multipliers from return maps needs many cycles and low noise, and piecewise-linear phase-sector maps compound the problem. Least squares treats the current stride as exact, so measurement noise pulls the estimate toward stability; for a linear map the bias can be removed with instrumental variables (@fig-floquet-maps) [@revzen2012].
 
-Finally, there is an identifiability warning that has been repeatedly emphasized in theoretical neuroscience: similar observed dynamics can arise from very different underlying parameter configurations [@prinz2004similar; @marder2006variability]. Applied here, a learned model (including an RL-based one) may reproduce realistic-looking walking trajectories while still misrepresenting the true biomechanical or neural control mechanisms. This underdetermination motivates our focus on robust operator-level signatures (e.g., non-normality, resolvent structure) rather than strong claims of unique mechanistic recovery from short, noisy recordings.
+![**Data-driven Floquet multipliers of SLIP walking are data-hungry and biased by measurement noise; for a linear map the bias is correctable.** Kicked SLIP walks (stride-level kicks at vertical leg orientation, VLO; open loop, truth 0.628 ± 0.713i, ρ = 0.95), 20 walks of 2000 steps; measurement noise is relative to the stride-to-stride SD of each variable. (A) Eigenvalues of the VLO return map from 20 walks: 30 steps with noise 0.25×, and 2000 noise-free steps; star, truth; dotted, unit circle. (B) Estimated spectral radius against record length, noise-free (solid) and with noise 0.25× (dashed); median and interquartile range over walks. More strides reduce the scatter, not the bias; the section map by instrumental variables (IV; previous step as the instrument) removes it. (C) Against measurement noise, 250 steps: section map by least squares and by IV, phase-indexed maps, and 8-sector piecewise-linear maps. (D) Piecewise-linear maps against the number of sectors composed over one step, 250 steps.](figures/Fig3_floquet_maps){#fig-floquet-maps fig-alt="Four panels: return-map eigenvalues in the complex plane, estimated spectral radius against record length, against measurement noise, and against the number of piecewise sectors."}
 
-### This perspective
+<!-- TODO Fig 2: the text's phase-map and piecewise numbers (OUTLINE §2 ¶5) are still the coupled-FHN ones; take the
+SLIP values from cache/fig3/slip_maps.jls. -->
 
-We present a series of computational demonstrations showing exactly where and why standard data-driven methods fail on periodic and gait data. Our thesis is:
+<!-- OUTLINE §2 ¶6 --> We propose characterising gait by its finite-time response operators: how deviations at one stride propagate, amplify and redistribute across joints over the next few strides. These are quantities that linear models expose directly.
 
-> *The combination of noise bias, intrinsic non-normality, phase-dependent geometry, and loss-landscape pathologies makes limit cycles fundamentally resistant to data-driven decomposition---and this resistance is itself a meaningful dynamical signature that can be exploited clinically.*
+## What a model of gait transients must do
 
-In a companion paper [@hess2026nonnormality], we show that the non-normality of delay-embedded DMD operators fitted to 299 gait trials discriminates able-bodied from post-stroke walking and encodes clinically relevant aspects of locomotor coordination---frequency tuning, inter-limb coupling directionality, and transient amplification capacity. The present paper provides the theoretical and computational foundation for that work.
+<!-- OUTLINE §3 ¶1 --> Studying transients means querying a model off the cycle and letting it run on its own for a few strides. That asks five things of it, none of which a forecast score tests:
 
-## Background: why limit cycles are different from fixed points
+1. **Faithful autonomous dynamics (R1).** Released from data, the model keeps the right cycle (no blow-up, wrong period or collapse) and relaxes correctly from off-cycle states, so it has learned the vector field around the cycle, not only a one-step map.
+2. **One answer (R2).** The same data give the same model and the same stability readout across seeds and nearby hyperparameters, so that differences between people are not fitting noise.
+3. **Predictable behaviour under measurement noise (R3).** Its estimates are insensitive to kinematic noise, or biased in a way that can be analysed and corrected.
+4. **Modest data needs (R4).** It works from tens of strides and a few channels, and shows when the data cannot support an answer.
+5. **Cheap and inspectable (R5).** It fits fast enough for cross-validation and bootstrap, with spectra and modes that can be checked.
 
-### Floquet theory and the monodromy matrix
+Forecast accuracy is not a requirement: a phase-indexed mean-cycle template forecasts gait better than every model (@suppfig-forecast), which shows that the mean is easy and that forecast error measures the wrong thing.
 
-Consider a dynamical system $\dot{\mathbf{x}} = \mathbf{f}(\mathbf{x})$, $\mathbf{x} \in \mathbb{R}^n$, possessing a stable limit cycle $\gamma$ with period $T$. Linearising about a point $\mathbf{x}_0 \in \gamma$ yields the variational equation $\dot{\boldsymbol{\xi}} = \mathbf{J}(\mathbf{x}_0(t))\,\boldsymbol{\xi}$, where $\mathbf{J}(\mathbf{x}_0(t)) = D\mathbf{f}|_{\mathbf{x}_0(t)}$ is the *time-periodic* Jacobian. By Floquet's theorem [@floquet1883], the fundamental matrix solution factors as $\Phi(t) = P(t) e^{Bt}$, where $P(t)$ is $T$-periodic and $B$ is constant.
+<!-- OUTLINE §3 ¶2 --> Neural ODEs, SINDy, reservoir computers and DMD have their clearest successes on systems with fixed governing equations, high signal-to-noise ratio, abundant snapshots, and dynamics observed through their transients [@chen2018; @brunton2016; @pathak2018].
 
-The *monodromy matrix* $M = \Phi(T)$ maps perturbations through one full period. For walking, this means: how does a perturbation at heel-strike propagate through one complete stride cycle? The eigenvalues $\mu_i$ of $M$ are the *Floquet multipliers*. One is always $\mu_1 = 1$ (the marginal direction tangent to the orbit). The remaining $|\mu_i| < 1$ for a stable cycle, and their eigenvectors define the transverse contracting directions [@wilson2016; @kvalheim2021].
+<!-- OUTLINE §3 ¶3 --> In walking, mechanics and neural control form one feedback loop. Passive recordings of the loop cannot separate plant from controller, a classic result in closed-loop system identification.
 
-Crucially, the Floquet eigendirections are generally *not constant*---they rotate and stretch as one moves along $\gamma$, parameterised by $P(t)$. The contraction rates can be *phase-dependent*: a perturbation may transiently grow during certain phases of the stride before ultimately decaying. When multipliers are close in magnitude, the corresponding eigendirections can become nearly parallel, inducing geometric sensitivity. None of these features have analogues in fixed-point dynamics, where the Jacobian eigenvectors are constant and contraction is uniform in time.
+<!-- OUTLINE §3 ¶4 --> Because the controller suppresses deviations, walking data stay close to the limit cycle. The transverse directions that encode stability and control are excited only weakly, by intrinsic noise.
 
-### DMD as a single-operator approximation
+<!-- OUTLINE §3 ¶5 --> Gait datasets add further obstacles: tens of strides per trial, a few kinematic channels standing in for a high-dimensional neuromechanical state, discrete contact events, and slow drift in speed and posture. Deviations are a few percent of a trial's variance (Figure [-@fig-gait-mean]B), so measurement noise is not small against the signal a transient analysis uses.
 
-Dynamic Mode Decomposition [@schmid2010; @kutz2016] seeks a matrix $\tilde{A}$ such that $\mathbf{x}_{k+1} \approx \tilde{A}\mathbf{x}_k$. For a system near a fixed point, $\tilde{A}$ approximates the matrix exponential $e^{J\Delta t}$, and its eigenvalues carry the full dynamical information.
+<!-- OUTLINE §3 ¶6 --> Many models fit on-cycle data equally well yet disagree about everything off the cycle, so training loss cannot select among them (Figure [-@fig-learnability]A, B; @suppfig-node-gait).
 
-For a limit cycle, the situation is fundamentally different. The data lie on or near a closed curve, and a single linear operator must simultaneously: (a) rotate states around the orbit, (b) contract perturbations transverse to the orbit, and (c) approximate the *time-varying* Floquet structure with a *time-invariant* operator. Requirement (c) is the crux of the difficulty: a time-varying Jacobian is being compressed into a constant matrix, and the resulting operator must use *non-normal mode mixing* to reproduce the net-stable, phase-dependent dynamics.
+<!-- OUTLINE §3 ¶7 --> When training data contain decays from perturbed states, transverse relaxation becomes identifiable. Even then, recovering it takes many transients and a delay window long enough to span the decay (Figure [-@fig-learnability]C).
 
-Hankel-DMD [@takens1981; @brunton2017] increases the rank and observability of the representation by constructing delay-embedded state vectors, but also amplifies the non-normality problem as delay coordinates introduce additional geometric entanglement.
+![**On-cycle data identify the cycle, not the dynamics around it; transient-rich data make the dynamics learnable, given enough of them.** (A) What 30 cycles of data cover. Coupled FHN (two synchronised units), the same budget recorded as one long trajectory with process noise only (grey) or as 10 decays × 3 cycles from perturbed starts (blue). Left, the slow desynchrony w₁ − w₂ at a Poincaré section; right, the cycle-to-cycle map it implies. The long trajectory barely samples the transverse direction, so even this one-dimensional regression gets the slope wrong (0.27 against a truth of 0.69; decays 0.66). (B) Equal training loss, different dynamics: over-parameterised neural ODEs fitted to five gait trials (symbols), several seeds each. Left, period of the cycle each learned field settles onto, relative to the stride period (shaded, not a stride-like cycle); right, the transverse multiplier of that cycle (stride-like cycles only). (C) Per-cycle off-cycle relaxation rate of Hankel-DMD fitted to n decays of 3 cycles: 16 settings of delay window × rank per data size (dots) and their median (line), least squares; grey band, truth.](figures/Fig1_learnability){#fig-learnability fig-alt="Three rows: desynchrony data and the cycle-to-cycle map from long versus decay data; learned period and multiplier of neural ODEs against training loss; DMD relaxation rate against number of training decays for coupled FHN and Stuart-Landau."}
 
-### Noise bias
+<!-- TODO Fig 3: (D) matched-data off-cycle comparison of all models is still to come (OUTLINE to-do 3). (B) give the
+number of seeds per trial. (C) the outline says Stuart–Landau needs about 300 decays and ≥ 1.5-cycle windows, but the
+median in C stays near 0.75 against a truth of 0.58 up to 300 decays: restate as "only some settings approach the
+truth" or check. -->
 
-Standard DMD solves a forward least-squares problem that treats noise in the input matrix $X$ as exact while minimising noise in the output $Y$. This asymmetry systematically biases eigenvalues toward the origin [@dawson2016; @hemati2017; @fuller1987]. For fixed-point attractors, this makes decay rates slightly too fast---a quantitative error. For limit cycles, the consequences are qualitative: the Floquet multiplier at $|\mu| = 1$ is pulled inside the unit disk, making the orbit appear to spiral inward; frequencies can shift; and mode shapes are distorted. Optimised DMD [@askham2018] and total-least-squares variants partially address this, but neural ODEs [@chen2018] and other continuous-time approaches inherit exactly the same bias structure: they learn $\dot{\mathbf{x}} = f_\theta(\mathbf{x})$ by minimising forward prediction error, treating the state trajectory as noise-free.
+## Candidate models against the requirements
 
-### Non-normality: why eigenvalue decomposition fails for oscillators
+<!-- OUTLINE §4 ¶1 --> We compare expressive models (neural ODE [@chen2018], echo state network [@jaeger2001], and a spectral-submanifold model [@haller2016; @cenedese2022]) with Hankel-DMD, a linear operator on delay (Hankel) coordinates [@brunton2017; @kutz2016]. Each is tuned on training data only with wide hyperparameter searches and tested free-running, because one-step or teacher-forced accuracy hides exactly the failures R1 is about.
 
-Even if noise bias could be perfectly corrected, the eigenvalue decomposition of a limit-cycle DMD operator would *still* not decompose the dynamics into separable components. The reason is *non-normality* [@trefethen2005].
+<!-- OUTLINE §4 ¶2 --> **R1, autonomous rollouts.** Hankel-DMD sustains the correct cycle in 92% of system–regime cells and never blows up; the expressive models succeed in 42–62% and blow up or settle on the wrong attractor in the rest (@fig-selfdriving). Expressive models fail by blowing up, by settling on a wrong period, or by collapsing to a fixed point; DMD fails by decaying slowly, which is benign and predictable because its eigenvalues are constrained.
 
-A matrix $A$ is normal if $AA^* = A^*A$. Normal matrices have orthogonal eigenvectors; non-normal matrices can have nearly parallel eigenvectors and large resolvent norms far from any eigenvalue. The degree of non-normality is measured by the Henrici departure $\eta = \|A^*A - AA^*\|_2 / \|A\|_2^2$ [@henrici1962], the eigenvector condition number $\kappa(V)$, and the Kreiss constant bounding worst-case transient growth [@trefethen2005].
+![**Released from data, expressive models often blow up, collapse or change rhythm; Hankel-DMD keeps the cycle (R1).** (A) Free runs from the end of a 12-cycle training window in the realistic regime (1% measurement noise; process noise on the simulated systems) for FitzHugh–Nagumo, coupled FHN, coupled Van der Pol, SLIP walking and one able-bodied gait trial. Grey, held-out data; colour, free runs of every seed (ESN, neural ODE), polynomial degree (SSMLearnPy) or rank (DMD), overlaid; runs that leave the frame are cut. Labels give the outcome counts after 30 cycles. (B) Outcome after 30 free-running cycles, pooled over systems and both regimes. (C) Free-run error over the first cycle per system (realistic and long regimes), against the phase-aligned mean-cycle template (black bars); points at 10 diverged. DMD and ESN hyperparameters were chosen on the training data only (fitted on all but the last two training cycles, selected by free-run error on those); the neural ODE uses one fixed recipe; SSMLearnPy the configuration tuned on gait.](figures/Fig2_self_driving){#fig-selfdriving fig-alt="Grid of phase portraits of free runs for four model classes on five systems, a bar chart of outcomes after 30 cycles, and first-cycle errors against a mean-cycle template."}
 
-@wu2021 showed that DMD applied to limit-cycle data faces inherent challenges from non-normality. We invert this perspective: rather than treating non-normality as a nuisance to be mitigated, we argue it is the most informative quantity these methods can produce. The more complex the underlying dynamics that the linear operator must encode---more timescale separation, more phase-dependent geometry, more inter-limb coupling---the more non-normal eigenvector geometry the operator must deploy [@hess2026nonnormality].
+<!-- TODO Fig 4: the outline lists Stuart–Landau among the benchmark systems; panel A shows single FHN instead. Check
+which systems are pooled in B and name them. -->
 
-## Demonstration I: the Stuart-Landau oscillator
+<!-- OUTLINE §4 ¶3 --> **R1, off-cycle relaxation.** Trained on the same 10 decays and started off the cycle, the single DMD fit relaxes at the truth's rate as closely as the best expressive seeds over the first four cycles (@fig-convex). Multipliers read out of fitted models vary widely across model classes, seeds and hyperparameters, even among models that forecast similarly (@suppfig-floquet-models).
 
-As a controlled testbed, we apply Hankel-DMD to the Stuart-Landau oscillator $\dot{z} = (\sigma + i\omega)z - z|z|^2$, the normal form for a supercritical Hopf bifurcation. With $\sigma = 0.1$ and $\omega = 2\pi$, this system has the simplest possible Floquet structure: a single nontrivial multiplier $\mu_s = e^{-2\sigma T} \approx 0.533$ with constant isostable directions.
+![**One convex answer: over the first four cycles the single linear fit is as accurate as the best expressive seeds, with no seed spread (R1, R2).** Off-cycle relaxation of models trained on the same 10 decays × 3 cycles, from 4 off-cycle starts ordered by the truth's rate (black ticks, joined by the dashed line); each fit's rates from the same starts are joined by a thin line. Rate = (distance after 4 cycles / initial distance)^1/4^. Hankel-DMD is one least-squares fit; ESN 4 seeds and neural ODE 3 seeds at fixed tuned settings. |error| = mean over starts of |model − truth|, range over seeds. (A) Coupled FHN, per cycle. (B) SLIP, centre-of-mass state (y, ẋ, ẏ), per step. (C) SLIP step multiplier read from the same runs: section-map eigenvalue of largest modulus, modulus against rotation per step; small symbols, each of 4 sections; large, median; star, exact (0.769 ∠ 13.6°); open circle, true runs read the same way.](figures/Fig6_linear_affordances){#fig-convex fig-alt="Relaxation rates per start for DMD, ESN seeds and neural-ODE seeds against the truth on coupled FHN and SLIP, and the SLIP step multiplier as modulus against rotation."}
 
-![Non-normality anatomy of the Stuart-Landau DMD operator. Despite a spectral radius near unity, the operator has a Henrici departure and eigenvector condition number far from the normal-matrix baseline, pseudospectra extending well beyond the unit circle, and a modest but genuine transient-growth overshoot above the spectral bound. (A) Eigenvalue spectrum. (B) Transient growth curve. (C) Pseudospectral contours. (D) Resolvent gain at r = 1.01.](figures/Figure_1.png){#fig-sl-anatomy}
+<!-- TODO Fig 5: panel C is provisional and its title "SLIP: no model rotates" is not robust (OUTLINE §4 ¶3): drop it,
+replace it with DMD's long-horizon plateau (§4 ¶10), or with Fig S6B (DMD's spectrum against the exact lattice). -->
 
-Even for this analytically tractable system, the Hankel-DMD operator with $\tau = 30$ delay lags exhibits a Henrici departure $\delta_H \approx 0.96$ (compared to 0 for a normal matrix), an eigenvector condition number $\kappa(V) \approx 6 \times 10^2$ (compared to $\kappa = 1$ for a normal matrix), and pseudospectra that extend beyond the unit circle (@fig-sl-anatomy). The transient growth curve (panel B) overshoots the spectral bound by only a modest $\sim$25% at this embedding dimension---the geometric distortion is already severe well before it shows up as large transient amplification. Both quantities grow substantially with dimension: for the 66-dimensional operators fitted to gait data in @hess2026nonnormality, $\kappa(V) \sim 10^5$ and transient growth exceeds $10^4$.
+<!-- OUTLINE §4 ¶4 --> **R2, one answer.** The DMD fit is a least-squares problem with a unique solution for each hyperparameter setting: no seeds, no local minima, and results that vary smoothly with rank and delay. Expressive models give different answers at equal loss.
 
-The mechanism is clear: the operator must simultaneously encode *rotation* (eigenvalues near the unit circle) and *contraction* (eigenvalues inside the unit circle), and the exact cancellation required for stable periodic orbits forces the eigenvectors into near-parallel configurations. The transient growth represents the operator's internal mechanism for achieving net rotation-plus-contraction: it amplifies certain mode combinations before they are cancelled by others.
+<!-- OUTLINE §4 ¶5 --> **R3, measurement noise.** In linear models we know how estimation errors bias the result and can correct it; least squares pulls eigenvalues inward, and instrumental variables remove the bias on the SLIP return map (Figure [-@fig-floquet-maps]B, C) [@dawson2016; @hemati2017; @askham2018]. Expressive models trained by one-step or shooting loss inherit the same errors-in-variables bias, with no closed-form handle on it.
 
-This non-normality is **not an artifact of noise, finite data, or poor algorithm choice**---it is an **intrinsic consequence** of approximating a time-varying process with a time-invariant operator. Removing any single eigenvalue from the spectrum dramatically changes the predicted dynamics; modes are not separable.
+<!-- OUTLINE §4 ¶6 --> **R4, data needs.** Hankel-DMD's relaxation rate converges visibly as decays are added (Figure [-@fig-learnability]C). On real 15-s gait trials no model has enough data.
 
-## Demonstration II: neural ODEs struggle with periodic data
+<!-- OUTLINE §4 ¶7 --> **R5, cost and inspection.** Fits take seconds, which makes cross-validation, bootstrap over trials and subjects, and wide hyperparameter sweeps routine; a single neural-ODE fit takes hours.
 
-Neural ODEs [@chen2018] learn a vector field $\dot{\mathbf{x}} = f_\theta(\mathbf{x})$ by minimising forward prediction error. They have been widely promoted as a flexible, continuous-time alternative to DMD. We show that for periodic data, they encounter fundamental difficulties that go beyond noise bias.
+<!-- OUTLINE §4 ¶8 --> These failures persist with careful training (Box 1).
 
-### A sine wave can fool a neural ODE
+::: {.callout-note appearance="simple" icon=false}
+## Box 1. Neural-ODE pitfalls
 
-We train neural ODEs with three architectures (1-layer/16-hidden, 2-layer/32-hidden, 3-layer/64-hidden) on a simple circular orbit $(\sin 2\pi t, \cos 2\pi t)$ with mild noise, using 12 random seeds per architecture. Multiple-shooting training with the adjoint method is employed to mitigate vanishing gradients.
+Forward Euler at the sample step spirals outward on oscillations; an output nonlinearity biases the vector field; very short shooting windows; latent encoder–decoder non-identifiability; summed weight decay; selection on minibatch loss.
 
-![Neural ODE failure on periodic data. (A) True trajectory and trained predictions across architectures and seeds. (B) Loss curves all plateau near the signal variance (dashed line), the loss achieved by predicting the mean. (C) Phase portrait showing collapse toward the origin. (D) Histogram of prediction amplitudes: all substantially below the true amplitude of 1.0.](figures/Figure_2.png){#fig-node-sine}
+<!-- TODO Box 1: one sentence per pitfall with its consequence; optional controlled degradation test on Stuart–Landau
+(OUTLINE §4 ¶8). -->
+:::
 
-Across all architectures and seeds, the neural ODE converges to predicting a trajectory with amplitude far below the true value---effectively collapsing toward the mean. The training loss plateaus near the signal variance, which is exactly the loss achieved by predicting zero (the time-averaged trajectory). This is a *loss landscape* problem: the mean prediction sits in a broad basin of attraction in parameter space, and gradient-based optimisation cannot escape it because small perturbations to the predicted trajectory do not reduce the loss---the error from being too early in one half of the cycle is offset by being too late in the other half.
+<!-- OUTLINE §4 ¶9 --> Hankel-DMD is the only candidate that meets R1–R5 together on these benchmarks (@tbl-scorecard). It does not win every cell.
 
-### Limit cycles with transients are even harder
+| Requirement | Neural ODE | ESN | SSMLearnPy | Hankel-DMD |
+|---|---|---|---|---|
+| R1 rollouts: ok / blow-up after 30 cycles | 42% / 12% | 60% / 19% | 62% / 12% | 92% / 0% |
+| R1 off-cycle, first 4 cycles: \|error\| coupled FHN / SLIP | 0.15–0.32 / 0.05 | 0.16–0.28 / 0.04–0.17 | not tested | 0.07 / 0.04 |
+| R1 off-cycle, beyond about 8 cycles | | returns to its cycle | | plateaus at 20–49% of the initial deviation |
+| R2 one answer | equal-loss gait fits disagree (periods 0.7–21×) | seed-dependent | | unique least-squares fit |
+| R3 measurement noise | errors-in-variables bias, no correction | same; more reliable on noisy Stuart–Landau | | nearly unbiased to 20% noise; linear-map bias correctable by IV |
+| R4 data needs | pending | pending | | converges with transients |
+| R5 cost per fit | hours | | | seconds |
 
-When training data includes trajectories perturbed off the limit cycle (providing information about the transverse dynamics), the neural ODE faces a compound problem: it must learn both the orbital dynamics and the contraction toward the cycle.
+: **How the candidate models meet the requirements.** R1 rollouts from Figure [-@fig-selfdriving]B; R1 off-cycle from @fig-convex and @suppfig-offcycle; R2 from Figure [-@fig-learnability]B and @fig-convex; R3 from @fig-floquet-maps; R4 from Figure [-@fig-learnability]C (matched-data comparison pending). Template: cells left blank were not tested. {#tbl-scorecard}
 
-*Figure generation for this panel is skipped in the current build (Figure 3 script currently unstable/slow).* 
+<!-- TODO Table 1: verify every cell against OUTLINE §4; fill SSMLearnPy (R1 off-cycle, R2, R3) and the ESN and
+SSMLearnPy costs, or mark them "not tested". -->
 
-Even when the orbit is approximately learned, the transverse dynamics are wrong: the neural ODE cannot simultaneously fit the orbital rotation and the radial contraction with the correct rates. Forward simulation from perturbed initial conditions diverges or spirals incorrectly. Floquet multiplier estimates extracted from the neural ODE's Jacobian bear little resemblance to the ground truth.
+<!-- OUTLINE §4 ¶10 --> Linearity is not a free lunch. DMD needs transient-rich data and long enough delay windows, and a linear model's cycle amplitude is neutral, so its off-cycle deviation plateaus after a few cycles (@suppfig-offcycle). No passive-data model, linear or not, recovers coupling direction. The claim is about meeting the requirements together, with failures that are known and analysable, not about universal accuracy.
 
-These findings are consistent with @linot2023, who documented the need for stabilisation tricks when applying neural ODEs to periodic systems, and with the broader observation [@massaroli2020; @kidger2022] that neural ODEs struggle with oscillatory dynamics. The fundamental issue is the same as for DMD: the model treats the observed trajectory as noise-free and optimises a forward loss, so it cannot account for errors-in-variables. But neural ODEs additionally lack the spectral interpretability that makes DMD's bias at least diagnosable.
+## Linear models on real gait: what they show, and where the data stop
 
-## Demonstration III: piecewise-linear models fragment the problem without solving it
+<!-- OUTLINE §5 ¶1 --> Most of gait variance lies in the mean cycle, and a template captures it better than any dynamical model. Whole-trajectory operator measures inherit this: most of the companion paper's transient growth at a ⅓-stride window is reproduced by the mean cycle alone (@fig-gait-mean).
 
-An intuitive strategy for handling the time-varying Floquet structure is to partition the limit cycle into angular sectors and fit a separate linear model $\mathbf{x}_{k+1} \approx A_j\,\mathbf{x}_k$ in each sector. One can then estimate the monodromy matrix as the product $M \approx A_K \cdots A_1$. Similarly, a *next-cycle model* fits a single operator $\mathbf{x}(t+T) = A\,\mathbf{x}(t)$ mapping states one full period ahead, directly targeting Floquet structure. We test both approaches on the Van der Pol oscillator with varying amounts of data and noise.
+![**Gait recordings are mostly the mean cycle, and whole-trajectory operator measures inherit it.** 299 treadmill trials of 15 s from 42 people (able-bodied, AB; higher- and lower-functioning stroke survivors, HF and LF), six sagittal joint angles. (A) One able-bodied trial (14 strides at 124 cm/s): knee angle of every stride (grey) and the mean cycle (black); below, each stride's deviation from the mean cycle. (B) Share of each trial's variance in the deviations against the number of strides in the trial. (C) Transient growth (TG) of the companion paper's operator [@hess2026nonnormality] (delay DMD, rank 70, ridge 10^−4^, stride-rescaled time; TG = max over one stride of ‖Ãᵏ‖) against the delay window: recorded trials (solid) and each trial's mean cycle repeated with no deviations (dashed); medians. Dotted, the companion paper's window (about ⅓ stride). A periodic signal has nothing to amplify, yet over a window shorter than the stride its harmonics are non-orthogonal and TG > 1; at a full-stride window TG = 1. (D) What the deviations add: per-trial Δlog₁₀ TG, recorded minus mean cycle only; median and interquartile range.](figures/Fig5_gait_variability){#fig-gait-mean fig-alt="One gait trial's strides and deviations, deviation share of variance against strides per trial, transient growth against delay window for recorded trials and mean cycle only, and the increase due to deviations."}
 
-![Piecewise-linear and next-cycle model failure on Van der Pol data. (A) Realistic noisy transient trajectory with phase partitions overlaid. (B) Forward prediction error compounds on transient test data. (C) Piecewise Floquet error from transient data. (D) Next-cycle error from transient data. (E) Data fragmentation: samples per partition decrease as partitions increase.](figures/Figure_4.png){#fig-piecewise}
+<!-- TODO Fig 6: note in the caption that the slowest trials (24–43 cm/s, 4–9 strides) are irregular, with deviations
+at 15–45% of their variance. -->
 
-The piecewise approach faces compounding difficulties:
+<!-- OUTLINE §5 ¶2 --> Identification success is not evidence of dynamics: the mean cycle identifies people at least as well as an operator signature (@suppfig-identification).
 
-1. **Error accumulation at boundaries.** At region boundaries, the switch between linear models introduces artificial discontinuities. Forward propagation compounds these errors exponentially---even when each sub-model fits its local data well.
+<!-- OUTLINE §5 ¶3 --> A linear operator fitted to delay-embedded kinematics describes how deviations evolve: impulse responses, transient growth, and cross-joint transfer. These are the finite-time response operators argued for above, measured on the deviations, not on the mean shape [@hess2026nonnormality].
 
-2. **Data fragmentation.** Each partition gets only a fraction of the total data. With 8 partitions and 1,000 periods of data, each sub-model has ~12,500 samples; with 64 partitions, each has ~1,500. For the short trials typical of clinical gait data (15--50 strides), even 4 partitions leave each sub-model with too few samples for robust estimation.
+<!-- OUTLINE §5 ¶4 --> Stride-level dynamics are not identifiable from 15-s trials. Section deviations barely carry over between strides, the instrumental-variable estimate is unstable, and out of trial no linear model predicts the next stride's deviation better than the mean stride (Figure S[-@suppfig-lattice]D).
 
-3. **Diminishing returns from more partitions.** In theory, finer partitions better approximate the time-varying Jacobian. In practice, the data fragmentation effect dominates: Floquet multiplier estimation error *increases* beyond a modest number of partitions.
+<!-- OUTLINE §5 ¶5 --> Structure that theory says a limit cycle has can be imposed on a linear model [@kvalheim2021]. Then even short transients identify the multiplier, but the structure cannot create stride-to-stride signal that passive trials lack (@suppfig-lattice). The exact linear form lives in coordinates we do not measure, and finding the cycle and the phase from data is a problem of its own.
 
-4. **The next-cycle model is biased.** Fitting $\mathbf{x}(t+T) = A\,\mathbf{x}(t)$ directly estimates the monodromy matrix, but this map averages over the within-cycle dynamics. With noise, the errors-in-variables bias shrinks eigenvalues toward zero, and even 5,000 periods of clean data do not achieve 1% accuracy in the transverse Floquet multiplier.
+## Discussion and recommendations
 
-These results explain why Floquet analysis from data remains impractical for human gait [@bruijn2013; @revzen2008]: the data requirements are fundamentally at odds with what clinical recordings provide.
+<!-- OUTLINE §6 ¶1 --> Evaluate models against the requirements, not forecast error: run them free, start them off the cycle, refit across seeds, add measurement noise, and test at realistic data sizes.
 
-## Demonstration IV: reservoir computing gets tantalizingly close, then fails
+<!-- OUTLINE §6 ¶2 --> Collect transients: design experiments that excite transverse dynamics (perturbations, speed changes, split-belt). With clinical-length recordings, report identifiability and a null, not a multiplier.
 
-Echo state networks (ESNs) [@jaeger2001] offer a different approach: a fixed, randomly connected reservoir of neurons is driven by the input data, and only the output weights are trained (by linear regression). ESNs have shown remarkable success in forecasting chaotic systems [@pathak2018; @vlachas2020]. Their linear readout means that the trained model's Jacobian is accessible, suggesting a route to Floquet estimation: train the ESN, compute its Jacobian at each point along one stride cycle, and multiply these Jacobians to approximate the monodromy matrix.
+<!-- OUTLINE §6 ¶3 --> Report finite-time response, not only asymptotic multipliers, and compute it under uncertainty.
 
-### Simulated systems: striking accuracy
+<!-- OUTLINE §6 ¶4 --> Prefer models whose errors can be analysed. Use expressive models as forecasters or embeddings, not as sources of mechanistic stability claims.
 
-![ESN-based Floquet estimation for simulated oscillators. (A,B) Stuart-Landau: eigenvalue comparison across reservoir sizes and ESN prediction quality. (C,D) FitzHugh-Nagumo. (E,F) Van der Pol. The stride-to-stride linear map recovers Floquet multipliers with reasonable accuracy for all three systems.](figures/Figure_5.png){#fig-esn-simulated}
-
-For the Stuart-Landau, FitzHugh-Nagumo, and van der Pol oscillators, the ESN's stride-to-stride linear map recovers Floquet multipliers with reasonable accuracy across a range of reservoir sizes. The method is simple---just linear regression on delay-embedded data---and requires no knowledge of the governing equations.
-
-### Real walking data: complete failure
-
-![ESN-based Floquet estimation fails on real gait data. (A) One-step prediction quality looks reasonable. (B) Extracted 'Floquet' eigenvalues are scattered across the complex plane with no coherent structure. (C) Eigenvalue magnitudes shift wildly with reservoir size. (D) Across 20 able-bodied trials, eigenvalues show no convergence to a stable structure.](figures/Figure_6.png){#fig-esn-gait}
-
-When the same approach is applied to real walking data---6 bilateral joint angles from the @winner2023 dataset---the picture changes completely. ESN one-step prediction quality looks reasonable (the model tracks the kinematics), but the extracted eigenvalue structure is incoherent: eigenvalues scatter across the complex plane, shift wildly with reservoir size, and show no convergence across trials from the same population. The clean Floquet structure that emerged so naturally from simulated oscillators simply does not exist in the data.
-
-This is the central lesson: **real walking data does not behave like a simple limit cycle.** The system is driven, high-dimensional, noisy, and quasi-periodic at best. Methods that assume a clean periodic orbit---whether explicitly (Floquet analysis) or implicitly (ESN Jacobian around one stride)---extract noise rather than structure.
-
-## Discussion
-
-### These failures motivate the non-normality interpretation
-
-Each of our four demonstrations fails for related but distinct reasons:
-
-- **DMD** produces an intrinsically non-normal operator because a time-invariant matrix cannot cleanly encode time-varying dynamics.
-- **Neural ODEs** get trapped in loss-landscape basins corresponding to the mean trajectory, and their forward-model formulation cannot handle errors-in-variables.
-- **Piecewise-linear models** fragment already-scarce data and compound errors at artificial boundaries.
-- **Echo state networks** succeed on clean simulations but fail on real data because walking is not a clean limit cycle.
-
-The common thread is the *mismatch between model and data*: all methods fit autonomous, time-invariant (or piecewise time-invariant) models to a system that is driven, time-varying, and quasi-periodic. This mismatch cannot be eliminated---any model simple enough to be interpretable will be a lossy compression of the actual dynamics.
-
-The question then becomes: *what does the lossy compression tell us?* In @hess2026nonnormality, we show that the answer is: quite a lot. The non-normality of the delay-embedded DMD operator---the very property that makes eigenvalue decomposition unreliable---encodes biologically meaningful information about locomotor coordination:
-
-- **Dynamical strain** ($\eta$, the Henrici departure) indexes how hard the linear model must work to encode the underlying nonlinear dynamics. It is speed-invariant in able-bodied gait but speed-dependent in both stroke groups.
-- **Resolvent gain structure** reveals whether the system responds broadly across frequencies (able-bodied) or is narrowly tuned to stride frequency (high-functioning stroke) or weakly responsive everywhere (low-functioning stroke).
-- **Spatial resolvent asymmetry** captures the directionality of inter-limb coupling, localising stroke-related coupling asymmetry to a specific knee-centred pathway.
-
-These findings suggest that post-stroke locomotor impairment is not a scalar degradation but a structured reorganisation of transient dynamics---and that the geometry of a data-driven model, not just its stability, carries biological information.
-
-### Other methods face related difficulties
-
-**Spectral submanifold (SSM) methods** [@haller2016; @cenedese2022] identify invariant manifolds tangent to spectral subspaces. They offer rigorous nonlinear modal analysis, but their mathematical foundation requires a well-resolved spectral splitting, sufficient off-manifold transient information, and non-resonance conditions that are difficult to verify in short, noisy gait recordings. We therefore tested the Python implementation SSMLearnPy directly on the gait data, sweeping delay depth, reduced dimension, map/flow formulations, polynomial order, and normal-form variants using the package examples as a guide. A tuned delay-map configuration---30 delay samples, a two-dimensional linear chart, cubic manifold parametrization, and a ninth-degree reduced map---forecasted held-out gait surprisingly well: 273/299 trials produced finite 5-second autonomous forecasts, with median normalized error 0.28 at 1 second, 0.38 at 3 seconds, and 0.62 at 5 seconds (@fig-ssm-gait). This result argues against dismissing SSM-style models as unusable for gait prediction. The remaining caution is interpretive: the successful model behaves primarily as an empirical delay-coordinate predictor, and its best performance does not by itself establish that a unique, biomechanically meaningful spectral submanifold or Floquet structure has been identified.
-
-![SSMLearnPy prediction on real gait data after hyperparameter tuning. Each trial was fit separately using 10 seconds of training data and evaluated by autonomous prediction over the held-out final 5 seconds. The best full-dataset configuration used 30 delay samples, a two-dimensional linear chart, cubic manifold parametrization, and a ninth-degree reduced map. (A) Median held-out prediction error with interquartile bands. The dashed line marks one standard deviation of joint-angle variation. (B) Hyperparameter scout: bars show median 3-second error and labels show finite-forecast fraction for leading configurations. (C--E) Representative knee-angle predictions. (F,G) Van der Pol sanity check confirming that the same SSMLearnPy workflow accurately predicts a nonlinear oscillator with clean transient structure.](figures/Figure_7_SSM.png){#fig-ssm-gait}
-
-Because the best forecasting model was a discrete map, its closed-loop behavior must be interpreted as a periodic orbit of the learned map rather than as a continuous-time limit cycle. We therefore also fit continuous-flow SSMs following the inverted-flag example more closely: two-dimensional reduced coordinates, longer delay embeddings, and high-order polynomial vector fields. We then solved a shooting problem for nontrivial periodic orbits with an amplitude constraint to avoid convergence to equilibria. In representative AB, HF, and LF trials, ninth-degree continuous-flow models yielded closed reduced orbits with periods near the estimated gait period and non-phase Floquet multipliers below one (@fig-ssm-flow-orbits). Thus, with more careful continuous-flow fitting, SSMLearnPy can recover attracting reduced periodic orbits in these examples. This does not remove the broader concern that real walking is regulated, task-dependent, and likely driven; rather, it shows that the failure of the earlier map phase portraits to close was not decisive evidence against SSM-style orbit structure.
-
-![Continuous-flow SSMLearnPy periodic-orbit search. Representative trials were fit with two-dimensional reduced flow SSMs and ninth-degree polynomial reduced dynamics. Periodic orbits were found by shooting with an amplitude constraint, then tested by finite-difference Floquet multipliers of the learned flow map. (A--C) Solved reduced orbits overlaid on the training reduced coordinates. (D) Orbit closure residual. (E) Largest non-phase Floquet multiplier; values below one indicate transverse attraction. (F) Continuous-time attraction exponent.](figures/Figure_8b_SSM_flow_orbits.png){#fig-ssm-flow-orbits}
-
-**SINDy-based Floquet decomposition** [@brunton2016; @kvalheim2021] uses sparse regression to learn a nonlinear Floquet decomposition, but requires accurate phase estimation and yields orbit-varying coefficients, deferring rather than resolving the decomposition problem.
-
-**Reinforcement learning and imitation learning approaches** can generate impressive locomotor behaviors [@hwangbo2019; @peng2018deepmimic], and are increasingly influential in both robotics and computational motor control. However, these approaches typically optimize task reward or behavioral similarity, not biomechanical interpretability. As a result, they can be excellent for control synthesis yet weak for scientific inference about patient-specific mechanisms. Their known generalization fragility under distribution shift [@packer2018assessing; @cobbe2019procgen] further limits direct translation to clinical settings where condition drift is the rule, not the exception.
-
-The identifiability problem compounds this concern: reproducing output trajectories does not guarantee recovery of the underlying dynamical substrate [@prinz2004similar; @marder2006variability]. For gait biomechanics, this means that "good-looking walking" in a learned policy or simulator should not be conflated with faithful recovery of neuromechanical structure.
-
-### Practical recommendations
-
-1. **Report non-normality metrics** alongside eigenvalues whenever applying DMD to oscillatory data. Eigenvalues alone are misleading for non-normal operators.
-2. **Interpret resolvent gains rather than eigenvalues** for frequency-domain analysis of limit-cycle systems.
-3. **Be sceptical of forward-propagation accuracy** for any model applied to periodic data. The transient growth bound means errors are amplified by $\max_n \|\tilde{A}^n\|$ before settling to the spectral decay rate.
-4. **Consider non-normality as a clinical biomarker** for movement disorders, complementing existing kinematic and kinetic measures.
-5. **Use total-least-squares or optimised DMD** to mitigate noise bias, and report the correction magnitude as a diagnostic.
-
-### Limitations and future directions
-
-Our computational demonstrations use relatively simple 2D oscillators. Real gait dynamics unfold in a much higher-dimensional space with stronger noise, quasi-periodicity, and non-stationarity. The piecewise-linear and next-cycle model results are shown on a Van der Pol benchmark; extending these demonstrations to higher-dimensional neuromechanical models with realistic noise and forcing would further strengthen the conclusions. The ESN Floquet extraction uses a stride-to-stride linear map rather than the full reservoir Jacobian chain---a more sophisticated implementation might improve results on simulated systems but is unlikely to resolve the fundamental issues with real data.
-
-The connection between operator non-normality and clinical outcomes requires further validation. Establishing predictive validity for fall risk, convergent validity with existing measures like $\lambda_S$, and sensitivity to therapeutic change are natural next steps. Extensions incorporating residual DMD for spectral convergence guarantees, measure-theoretic Koopman formulations, or hybrid embeddings that combine delay coordinates with nonlinear observables may yield richer operator-level phenotypes for clinical stratification.
+<!-- OUTLINE §6 ¶5 --> Outlook: closed-loop identification with perturbations and controlled inputs, and linking operator structure to neural control [@hess2026nonnormality].
 
 ## Conclusion
 
-Individual-specific dynamical modeling of walking is fundamentally harder than the analogous problem for fixed-point attractors. Noise bias, intrinsic non-normality, phase-dependent Floquet geometry, and loss-landscape pathologies interact to defeat neural ODEs, piecewise-linear models, and reservoir computing approaches in ways that are not immediately obvious from their successes on simpler systems. We have shown through four computational demonstrations that these difficulties are not specific to any one method but reflect the inherent mismatch between autonomous, time-invariant models and driven, time-varying biological oscillations.
-
-Rather than viewing these failures as reasons to abandon data-driven modeling of gait, we argue they point toward a different interpretive strategy. The non-normality that makes eigenvalue decomposition unreliable also encodes how the locomotor system coordinates itself---how broadly it can respond to perturbations, how the two limbs couple, and how robustly the coordination strategy adapts to changing conditions. By embracing the non-normal structure of the operator rather than trying to look past it, we gain access to clinically meaningful signatures of locomotor coordination that scalar stability measures cannot capture.
+<!-- OUTLINE §7: one paragraph, to write last. -->
 
 ## Data accessibility
 
@@ -232,7 +197,22 @@ The gait recordings analysed here are openly available through the dataset descr
 
 ## Code accessibility
 
-All code used for simulations, model fitting, and figure generation is available at [github.com/michaelhess17/Gait_Modeling_Perspective_Paper](https://github.com/michaelhess17/Gait_Modeling_Perspective_Paper).
+All code used for simulations, model fitting and figure generation is available at [github.com/michaelhess17/Gait_Modeling_Perspective_Paper](https://github.com/michaelhess17/Gait_Modeling_Perspective_Paper). Run each script from the repository root with `julia --project=. scripts/<name>.jl`; scripts that write caches are run before the figure scripts that read them.
+
+- @fig-nonnormal: `Fig4_nonnormality.jl`, from `systems_truth.jl`, `slip_truth.jl` (SLIP.jl environment)
+- @fig-floquet-maps: `Fig3_floquet_maps.jl`, from `fig3_slip_maps.jl` (cache/fig3), `slip_truth.jl`
+- @fig-learnability: `Fig1_learnability.jl`, from `fig1_coverage_data.jl`, `gait_overparam.jl`, `dmd_delay_sweep.jl`
+- @fig-selfdriving: `Fig2_self_driving.jl`, from `self_driving_benchmark.jl`, `dmd_tuning.jl`, `esn_tuning.jl`, `ssm_self_driving.py` (cache/selfdrive)
+- @fig-convex: `Fig6_linear_affordances.jl`, from `offcycle_v2.jl`, `slip_decays.jl`, `slip_rotation.jl`
+- @fig-gait-mean: `Fig5_gait_variability.jl`, from `fig5_gait_data.jl` (cache/fig5)
+- @suppfig-forecast: `FigS1_forecast_baselines.jl`, from `SSM_baselines.py`, `export_forecast_examples.py`
+- @suppfig-node-gait: `FigS2_node_gait.jl`, from `gait_overparam.jl`
+- @suppfig-floquet-models: `FigS3_floquet_models.jl`, from `floquet_from_models.jl` (cache/floquet)
+- @suppfig-offcycle: `FigS4_offcycle.jl`, from `offcycle_v2.jl`
+- @suppfig-identification: `FigS5_identification.jl`, from `fig5_gait_data.jl` (cache/fig5)
+- @suppfig-lattice: `FigS6_lattice.jl`, from `figS6_slip_data.jl`, `floquet_lifted.jl`, `gait_lattice.jl`, `gait_lattice_null.jl`, `gait_lattice_speed.jl`
+
+Results reported in the text without a figure: `iv_gait_stride.jl` (stride maps on gait), `iv_gait_operator.jl` (IV on the companion operator), `fig6_bias_correction.jl` (forward–backward and total-least-squares DMD), `dmd_noise_variants.jl` (DMD under measurement noise), `floquet_tuned.jl` (multipliers read out of models), `coupling_benchmark.jl` (coupling direction). Script descriptions are in `scripts/README.md`.
 
 ## Authors' contributions
 
@@ -245,3 +225,50 @@ We declare we have no competing interests.
 ## Funding
 
 This work was supported by the National Institute on Aging (NIH R01AG082039) and a Simons-Emory International Consortium on Motor Control Micro-accelerator grant.
+
+## References
+
+::: {#refs}
+:::
+
+{{< pagebreak >}}
+
+## Supplementary figures {.appendix}
+
+::: {#suppfig-forecast}
+![](figures/FigS1_forecast_baselines){fig-alt="Forecast error against lead time for SSMLearnPy, Hankel-DMD and a mean-cycle template; per-trial comparison; example knee-angle forecasts."}
+
+**Forecasting real gait: dynamical models against a phase-aligned mean cycle.** Every method gets the same information (z-scored joint angles up to sample 1000 of each 15-s trial) and is scored on the same held-out targets by the instantaneous RMSE across the six channels. (A) Median error against lead time (interquartile range shaded for the template and the SSM): the tuned SSMLearnPy delay map and a rank-70 Hankel-DMD (ridge 10^−4^, stabilised; the companion paper's settings) are both worse than repeating a phase-aligned mean training cycle; repeating the last stride is shown for reference. (B) Per trial at 2.7 s lead; above the diagonal, the SSM is worse than the template. (C–E) Knee angle in one representative trial per group.
+:::
+
+::: {#suppfig-node-gait}
+![](figures/FigS2_node_gait){fig-alt="Hip-knee diagrams of neural-ODE forecasts for three trials, forecast error against lead time, and learned period and multiplier against training loss."}
+
+**Neural ODEs on real gait: a good fit, an unconstrained dynamics.** A deliberately over-parameterised neural ODE (3 × 128, about 35,000 parameters against 3,000 training values), trained by multiple shooting on 10 s of six z-scored joint angles from one trial per group, six random seeds each. (A–C) Hip–knee angle–angle diagrams (limb 1): grey, training strides; black, the held-out 5 s; colour, each seed's autonomous forecast from the last training sample. (D) Forecast error against lead time for every seed, with the phase-aligned mean-cycle template for reference. (E) Period of the cycle each learned field settles onto, relative to the measured stride period, against final training loss. (F) Transverse Floquet multiplier of that cycle against training loss: equal loss, different dynamics.
+:::
+
+::: {#suppfig-floquet-models}
+![](figures/FigS3_floquet_models){fig-alt="Floquet multipliers read out of neural ODEs, ESNs and DMD against the known truth for several systems and data regimes."}
+
+**Floquet multipliers read out of fitted models, against known truth.** For each system and data regime, the transverse multiplier is read from the model's own limit cycle by chaining one-step Jacobians over one period (neural ODE, ESN), or by a variational probe on data-delay windows (Hankel-DMD, coupled FHN only). Neural ODE, 4 seeds on one data set; ESN, 8 seeds on one data set plus one ESN per data realisation (10); DMD, 8 analysis settings (window ½ or 1 cycle × rank 16, 30, 50, 80; least squares) × 10 data realisations. Points are drawn only for runs that settled on a cycle; runs that collapsed or whose period is more than 10% off the data period are marked.
+:::
+
+<!-- TODO Fig S3: rebuild from the tuned and decay results (scripts/README.md). -->
+
+::: {#suppfig-offcycle}
+![](figures/FigS4_offcycle){fig-alt="Deviation from each model's own attractor against cycles after an off-cycle start, for DMD, ESN and neural-ODE fits and the truth."}
+
+**Off-cycle relaxation of models trained on decays from perturbed starts.** The true system is started off its cycle; each model, warmed up on 170 samples of that trajectory, then runs freely. Deviation is the distance to the nearest point of the model's own attractor (independent of phase), RMS over each cycle, relative to the first cycle; for the truth, the distance to the true cycle, which decays by the multiplier every cycle. One line per fitted model (DMD, tuned setting; ESN and neural ODE, one line per seed), median over 4 start phases; runs that blew up are not drawn.
+:::
+
+::: {#suppfig-identification}
+![](figures/FigS5_identification){fig-alt="Identification accuracy of individuals from different gait feature families, with chance level."}
+
+**Identifying individuals: the mean cycle does as well as the operator signature.** The companion paper's split-half protocol: each person's trials are split at random into halves, features are averaged per half and z-scored against the able-bodied half-A distribution, and a person is identified when their other half is the nearest (cosine) match among all 42 people. Mean and 95% range over 200 random splits; dashed, chance (1/42). Deviation features can carry within-stride timing jitter and marker artefacts.
+:::
+
+::: {#suppfig-lattice}
+![](figures/FigS6_lattice){fig-alt="The lattice-constrained model on one SLIP decay, Koopman spectra of the lattice and Hankel-DMD, SLIP off-cycle metrics for all models, gait forecast skill, forecast error against assumed multiplier, and skill under different selection rules."}
+
+**Imposing the limit cycle's structure on a linear model.** (A) The lattice-constrained model on one SLIP decay: state = fitted cycle a(θ) plus one Floquet mode Re[ψ e^μt^ b(θ)]; the phase advances uniformly, the mode shrinks by the multiplier and turns by its rotation every step, and its shape b(θ) repeats every step. (B) A stable limit cycle's Koopman spectrum is a lattice: read relative to the nearest harmonic, every harmonic sits at (0°, 1) and every Floquet sideband at the star. Hankel-DMD (same 10 three-step decays) fits each eigenvalue on its own; the lattice fit returns one value. (C) SLIP off-cycle metrics, 4 starts: |error| of the 4-step relaxation rate (@fig-convex's metric) and distance to the true cycle after 25 steps relative to the initial distance. (D) Human gait and kicked SLIP walks: R² of the deviation from the mean stride 1 stride ahead (filled; 2 strides ahead, open) from half a stride of data; median and interquartile range over trials; multiplier and DMD rank chosen on the person's other trials. (E) Forecast error over strides +1 and +2 against the assumed multiplier modulus: kicked SLIP walks have a minimum near the truth; gait profiles are flat at the mean stride's error. (F) Lattice skill with the multiplier chosen out of trial (solid), on the scored strides (dashed), and on stride-shuffled copies of each trial (dotted): on gait about half of the on-test skill is selection, and the rest does not carry over to other trials.
+:::
