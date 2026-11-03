@@ -18,8 +18,10 @@ Section and figure numbers refer to ../OUTLINE.md.
 - `Fig5_gait_variability.jl` (+ `fig5_gait_data.jl`; human data from ../Gait_NonNormality_Paper3, path in
   `GAIT_P3`): mean cycle vs deviations, mean-cycle-only surrogate of the companion paper's transient growth,
   identification by feature family
-- `Fig6_linear_affordances.jl` (offv2_{cfhn,slip}_* caches, `slip_rotation.jl`): per-start, per-seed off-cycle
-  relaxation on coupled FHN and SLIP; SLIP step multiplier (modulus and rotation) read from the same runs
+- `Fig6_linear_affordances.jl` (= Fig 5; `fig6_relaxation_data.jl` → cache/fig6/relaxation.jls): per-start, per-seed
+  off-cycle relaxation on coupled FHN and SLIP, scored to the curve through the reference's samples and from each
+  model's settled attractor (DMD, ESN refitted; neural ODE from cached offv2 runs); multipliers of each model's own SLIP
+  cycle (DMD operator in the cycle frame, ESN monodromy)
 - Supplement: `FigS5_identification.jl` (from the Fig 5 cache), `FigS1_forecast_baselines.jl`, `FigS2_node_gait.jl`, `FigS3_floquet_models.jl` (needs rebuilding
   from tuned/decay results), `FigS4_offcycle.jl`
 - `FigS7_validation.jl` (`validation_criteria.jl`, `-t 16`, → cache/selfdrive/validation_criteria.jls): one-step
