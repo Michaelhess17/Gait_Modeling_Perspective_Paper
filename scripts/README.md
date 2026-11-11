@@ -1,20 +1,51 @@
 # scripts/
 
+## Current manuscript organization (outline revised 2026-11-04)
+
+See [FIGURE_PLAN.md](FIGURE_PLAN.md) and [the active outline](../OUTLINE.md).
+The learnability figure is being rebuilt around held-out perturbation response.
+`Fig1_learnability.jl` now renders only the preliminary coverage diagnostic and
+is not included as a completed main-text learnability result.
+`stabilization_data.jl` → `Fig_stabilization.jl` provides the paired constraint
+comparison after R2. The revised outline restores `Fig3_floquet_maps.jl` to the
+opening conceptual/practical Floquet critique and retains its piecewise-model
+comparisons in the main narrative. This order is now implemented in the manuscript;
+the previous main/supplement split is withdrawn. The larger-kick recovery figure
+is in the main text, and the earlier small-kick comparison is supplementary.
+Numerical prefixes below are legacy filenames.
+
+
 Run everything from the repository root, e.g. `julia --project=. scripts/Fig_self_driving.jl`.
 Paths are resolved relative to the repository root (`cache/`, `data/`, `figures/`, `logs/`).
-Section and figure numbers refer to ../OUTLINE.md.
+Older section and figure numbers below are historical; use FIGURE_PLAN.md for the current mapping.
 
 ## Shared
 - `common.jl`: data loading, `cache_path`, Hankel/DMD helpers (included by most scripts)
 - `paper_style.jl`: CairoMakie theme, palette, `save_paper` (writes figures/*.pdf|svg|png)
 
-## Main figures (numbered as in OUTLINE.md)
-- `Fig1_learnability.jl` (+ `fig1_coverage_data.jl`): data coverage and the cycle-to-cycle map, equal-loss
-  gait neural ODEs, DMD relaxation vs transient data. Panel D (matched-data comparison) still to come.
+## Figure scripts (historical filenames)
+- `slip_predictable_truth.jl` (SLIP.jl environment; noise-free continuations from 300 test starts) →
+  `predictable_response.jl` (`-t 8`, → cache/predictable/slip_results.jls) → `Fig_predictable.jl` (fig-predictable):
+  how much of the predictable short-time response DMD and ESN forecast on kicked SLIP walks, against the
+  noise-free-continuation ceiling; feedback / open loop, 60 / 300 training steps, full state / height only.
+- `stabilization_benchmark.jl` (`-t 8`, → cache/selfdrive/stabilization_benchmark.jls): the benchmark's DMD cells
+  refitted without the spectral constraint (paired) and retuned without it; the retuned outcomes are the
+  "no constraint" bar of fig-selfdriving B. Supersedes `Fig_stabilization.jl` in the manuscript.
+- `fig1_transient_data.jl` (`-t 8`, reads cache/truth) → `Fig1_transient.jl` (= Fig 1, fig-transient): walking is
+  disturbed again before it recovers. Kicked SLIP walk as a sum of overlapping responses, one coupled-FHN disturbance
+  against the multiplier within a stride and from stride to stride, and the share of the observed deviation from
+  disturbances younger than n strides.
+- `cfhn_large_kicks_data.jl` → `cfhn_large_kicks_models.jl dmd` / `esn` → `Fig_cfhn_large_kicks.jl`: larger amplitude and coordination disturbances, matched training-domain coverage, independent validation and 16 held-out kicks. Forecasts begin immediately after the kick; the externally imposed jump is excluded from autonomous training targets. Produces `figures/Fig_cfhn_large_kicks.*` and the experiment report `figures/CFHN_large_kicks.md`.
+- `cfhn_smooth_coordination_fit.jl` → `Fig_cfhn_coordination_checks.jl`: compare original smooth-regime DMD/ESN fits with a training-standardized redundant `w₁−w₂` channel, using identical validation criteria. Produces one comparison figure and `figures/CFHN_coordination_checks.md` with period, shared-phase-alignment, crossing-lag and paired-response metrics. Requires `cfhn_smooth_data.jl` and the original DMD/ESN caches from `cfhn_smooth_models.jl`.
+- `Fig_cfhn_smooth_response.jl`: individual smooth-regime state traces and their difference against truth, updated in place.
+- `cfhn_trajectory_diagnostics_data.jl` → `Fig_cfhn_trajectory_diagnostics.jl`: optional regeneration of the earlier sharp-regime state/response diagnostics. Superseded rendered files were removed during figure cleanup; scripts and caches are retained.
+- `stabilization_data.jl` → `Fig_stabilization.jl`: matched raw, clipped and unit-circle-constrained DMD rollouts.
+- `Fig1_learnability.jl` (+ `fig1_coverage_data.jl`): preliminary coverage diagnostic; replacement experiment specified in `FIGURE_PLAN.md`.
 - `Fig2_self_driving.jl`: free-running benchmark
 - `Fig3_floquet_maps.jl` (+ `fig3_slip_maps.jl`, data from `slip_truth.jl`): data-driven Floquet maps of SLIP,
   including the instrumental-variable section map
-- `Fig4_nonnormality.jl` (data from `systems_truth.jl`, `slip_truth.jl`): transient growth beyond eigenvalues
+- `Fig4_nonnormality.jl` (data from `systems_truth.jl`, `slip_truth.jl`): transient growth beyond eigenvalues (superseded: merged into
+  `Fig1_transient.jl`; its oscillator-family and phase-shift panels are `FigS8_oscillators.jl`)
 - `Fig5_gait_variability.jl` (+ `fig5_gait_data.jl`; human data from ../Gait_NonNormality_Paper3, path in
   `GAIT_P3`): mean cycle vs deviations, mean-cycle-only surrogate of the companion paper's transient growth,
   identification by feature family

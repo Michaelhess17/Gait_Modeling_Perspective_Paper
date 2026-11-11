@@ -218,7 +218,8 @@ end
 # ═════════════════════════════════════════════════════════════════════════════
 # Neural ODE (several trajectories)
 # ═════════════════════════════════════════════════════════════════════════════
-function fit_node_multi(Ys, dt; seed = 1, hidden = 64, depth = 2, epochs = 300, lr = 2e-3, shoot = 25)
+function fit_node_multi(Ys, dt; seed = 1, hidden = 64, depth = 2, epochs = 300, lr = 2e-3, shoot = 25,
+                        return_model = false, report_every = 0)
     d = size(Ys[1], 2); t = collect((0:size(Ys[1], 1)-1) .* dt)
     layers = Any[Lux.Dense(d, hidden, tanh)]
     for _ in 2:depth; push!(layers, Lux.Dense(hidden, hidden, tanh)); end
@@ -239,9 +240,16 @@ function fit_node_multi(Ys, dt; seed = 1, hidden = 64, depth = 2, epochs = 300, 
     end
     hist = Float64[]
     sol = solve(OptimizationProblem(OptimizationFunction(loss, Optimization.AutoZygote()), p0),
-                OptimizationOptimisers.Adam(lr); maxiters = epochs, callback = (s, l) -> (push!(hist, l); false))
+                OptimizationOptimisers.Adam(lr); maxiters = epochs, callback = (s, l) -> begin
+                    push!(hist, l)
+                    if report_every > 0 && length(hist) % report_every == 0
+                        println("NODE seed ", seed, " epoch ", length(hist), " loss ", l); flush(stdout)
+                    end
+                    false
+                end)
     pf = sol.u
-    (u -> first(model(u, pf, st))), hist[end]
+    vf = u -> first(model(u, pf, st))
+    return_model ? (vf, hist[end], (; model, ps=pf, st, hist)) : (vf, hist[end])
 end
 
 function node_read_multi(Ys, dt, st, seed)

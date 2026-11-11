@@ -1,5 +1,6 @@
 #!/usr/bin/env julia
-# Figure 3 — Data-driven Floquet maps of SLIP walking are data-hungry and noise-fragile (OUTLINE.md §4 ¶2).
+# Estimation bias and correction — manuscript "What does linear structure buy us?".
+# Historical filename retained. Main/supplement panel split is specified in FIGURE_PLAN.md.
 #
 # Kicked SLIP walks (stride-level kicks at VLO; open loop, truth 0.628 ± 0.713i, ρ = 0.95), 20 walks of 2000
 # steps; estimators and noise model in scripts/fig3_slip_maps.jl (cache/fig3/slip_maps.jls). Measurement

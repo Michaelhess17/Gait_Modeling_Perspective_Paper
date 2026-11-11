@@ -16,6 +16,62 @@ format:
     default-image-extension: png
   pdf:
     default-image-extension: pdf
+    include-in-header:
+      - text: |
+          % Unicode in captions and tables, so the .tex also compiles with pdfLaTeX (Overleaf's default)
+          \usepackage{newunicodechar}
+          \newunicodechar{−}{\ensuremath{-}}
+          \newunicodechar{α}{\ensuremath{\alpha}}
+          \newunicodechar{β}{\ensuremath{\beta}}
+          \newunicodechar{γ}{\ensuremath{\gamma}}
+          \newunicodechar{δ}{\ensuremath{\delta}}
+          \newunicodechar{ε}{\ensuremath{\varepsilon}}
+          \newunicodechar{η}{\ensuremath{\eta}}
+          \newunicodechar{θ}{\ensuremath{\theta}}
+          \newunicodechar{κ}{\ensuremath{\kappa}}
+          \newunicodechar{λ}{\ensuremath{\lambda}}
+          \newunicodechar{μ}{\ensuremath{\mu}}
+          \newunicodechar{π}{\ensuremath{\pi}}
+          \newunicodechar{ρ}{\ensuremath{\rho}}
+          \newunicodechar{σ}{\ensuremath{\sigma}}
+          \newunicodechar{τ}{\ensuremath{\tau}}
+          \newunicodechar{φ}{\ensuremath{\varphi}}
+          \newunicodechar{ψ}{\ensuremath{\psi}}
+          \newunicodechar{ω}{\ensuremath{\omega}}
+          \newunicodechar{Δ}{\ensuremath{\Delta}}
+          \newunicodechar{Λ}{\ensuremath{\Lambda}}
+          \newunicodechar{Σ}{\ensuremath{\Sigma}}
+          \newunicodechar{Φ}{\ensuremath{\Phi}}
+          \newunicodechar{‖}{\ensuremath{\|}}
+          \newunicodechar{≈}{\ensuremath{\approx}}
+          \newunicodechar{≤}{\ensuremath{\leq}}
+          \newunicodechar{≥}{\ensuremath{\geq}}
+          \newunicodechar{≠}{\ensuremath{\neq}}
+          \newunicodechar{→}{\ensuremath{\rightarrow}}
+          \newunicodechar{∞}{\ensuremath{\infty}}
+          \newunicodechar{∠}{\ensuremath{\angle}}
+          \newunicodechar{√}{\ensuremath{\surd}}
+          \newunicodechar{ẋ}{\ensuremath{\dot{x}}}
+          \newunicodechar{ẏ}{\ensuremath{\dot{y}}}
+          \newunicodechar{₀}{\textsubscript{0}}
+          \newunicodechar{₁}{\textsubscript{1}}
+          \newunicodechar{₂}{\textsubscript{2}}
+          \newunicodechar{ᵏ}{\textsuperscript{k}}
+          \newunicodechar{ⁿ}{\textsuperscript{n}}
+          % pdfLaTeX: accept the figures' PDF 1.7 without warnings
+          \ifdefined\pdfminorversion\pdfminorversion=7\fi
+          % small captions, and figures at most 58% of the text height, so that figure and caption fit on one page
+          \AtBeginDocument{\captionsetup{font=small}}
+          \makeatletter
+          \renewcommand*\pandocbounded[1]{%
+            \sbox\pandoc@box{#1}%
+            \Gscale@div\@tempa{0.58\textheight}{\dimexpr\ht\pandoc@box+\dp\pandoc@box\relax}%
+            \Gscale@div\@tempb{\linewidth}{\wd\pandoc@box}%
+            \ifdim\@tempb\p@<\@tempa\p@\let\@tempa\@tempb\fi
+            \ifdim\@tempa\p@<\p@\scalebox{\@tempa}{\usebox\pandoc@box}%
+            \else\usebox{\pandoc@box}%
+            \fi}
+          \makeatother
 
 execute:
   enabled: false

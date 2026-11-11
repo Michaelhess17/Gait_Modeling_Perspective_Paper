@@ -1,8 +1,10 @@
 #!/usr/bin/env julia
-# Matched-data comparison for Fig 5A / Fig 3D (OUTLINE.md §4 ¶2, ¶6): do DMD and the ESN predict the return to the
-# true coupled-FHN cycle better with more training decays? Same scoring as fig6_relaxation_data.jl (distance to the
+# Matched-data comparison for Fig 3C (OUTLINE.md §3 ¶7, §4 ¶2, ¶6): do DMD and the ESN predict the return to the true
+# cycle better with more training decays? Coupled FHN (new decays from dmd_delay_sweep.jl's generator) and SLIP
+# (10, 30, 100 decays = 1, 3, 10 of slip_decays.jl's independent 10-decay sets, pooled). Same scoring as fig6_relaxation_data.jl (distance to the
 # curve through the true cycle's samples, from the 4 real perturbed starts; with no perturbation, the drift of the
-# model's run from the true cycle by cycle 4). History = 2 true cycles before the kick + the 170-sample warm-up.
+# model's run from the true cycle by cycle 4). History: coupled FHN, 2 true cycles before the kick + the 170-sample
+# warm-up (lets 1.5-cycle windows run); SLIP, the 170-sample warm-up (its windows are shorter).
 # Each model is reported at its Fig 5 setting (tuned on 10 decays; ESN median over seeds 1–4) and as the best of a
 # small grid, the latter chosen on the test score itself (an optimistic bound, not a fair selection).
 #
@@ -12,7 +14,7 @@ include("dmd_delay_sweep.jl")
 using Printf
 BLAS.set_num_threads(1)
 
-const SYS = "cfhn"; const n = SPC_F; const PH = (1, 28, 55, 83)
+const n = SPC_F; const PH = (1, 28, 55, 83)
 esn_pred(m) = H -> (S = run_steps(esn_step(m), esn_tf(m, H, size(H, 1)), 30n); S === nothing ? nothing : permutedims(S[m.N+1:end, :]))
 dmd_pred(m) = H -> dmd_free(m, H, 30n)
 
@@ -25,16 +27,23 @@ function score(pred, Hk, Ho, Ct, truth)
        drift4 = median([env(dist_curve(F[1:5n, :], Ct; closed = true))[5] for F in Fo]), envs = ek)
 end
 
+function training(sys, ntraj)
+    sys == "cfhn" && return ntraj == 10 ? raw_training(sys, "decays"; seed = 1) : decays(sys, ntraj, 3; seed = 1)
+    raw = reduce(vcat, [slipd().decays[k] for k in 1:ntraj ÷ 10]); allX = reduce(vcat, raw)
+    μ = mean(allX, dims = 1); σ = std(allX, dims = 1); [(X .- μ) ./ σ for X in raw], μ, σ
+end
+OUT = Dict{String, Any}()
+for SYS in ("cfhn", "slip")
 hp_d = chosen_hparams(SYS, "decays", "dmd"); hp_e = chosen_hparams(SYS, "decays", "esn")
-dgrid = vec([(; τ, r, variant = "ls", ridge = 1e-6) for τ in (82, 110, 165), r in (60, 120, 200, 300)])
+dgrid = vec([(; τ, r, variant = "ls", ridge = 1e-6) for τ in (SYS == "cfhn" ? (82, 110, 165) : (55, 82, 110)), r in (60, 120, 200, 300)])
 egrid = vec([merge(hp_e, (; N, ρ, λ)) for N in (400, 800), ρ in (0.9, 1.2), λ in (1e-6, 1e-4)])
 cs = cycle_states(SYS); starts = true_starts(SYS); ons = true_oncycle(SYS)
 out = Dict{Int, Any}()
-println("ESN Fig 5 setting: ", hp_e)
+println("\n######## $SYS   ESN Fig 5 setting: ", hp_e, "   DMD: ", hp_d)
 for ntraj in (10, 30, 100)
-    Ys, μ, σ = ntraj == 10 ? raw_training(SYS, "decays"; seed = 1) : decays(SYS, ntraj, 3; seed = 1)
+    Ys, μ, σ = training(SYS, ntraj)
     std_(X) = (X .- μ) ./ σ; Ct = std_(cs)
-    pre(ph) = std_(cs[[mod1(ph - k, n) for k in 2n:-1:1], :])
+    pre(ph) = SYS == "cfhn" ? std_(cs[[mod1(ph - k, n) for k in 2n:-1:1], :]) : zeros(0, size(cs, 2))
     Hk = [vcat(pre(ph), std_(T)[1:W_WARM, :]) for (ph, T) in zip(PH, starts)]
     Ho = [vcat(pre(ph), std_(T)[1:W_WARM, :]) for (ph, T) in zip(PH, ons)]
     truth = [env(dist_curve(std_(T)[W_WARM+1:end, :], Ct; closed = true)) for T in starts]
@@ -61,4 +70,6 @@ for ntraj in (10, 30, 100)
             @printf("  %-3s best of grid (chosen on test): cycle-4 distance %.3f, rate |err| %.3f, no-kick drift %.3f  %s\n", kind, b.k4, b.rerr, b.drift4, b.g))
     end
 end
-mkpath(cache_path("fig6")); serialize(cache_path("fig6/matched_data.jls"), out)
+OUT[SYS] = out
+end
+mkpath(cache_path("fig6")); serialize(cache_path("fig6/matched_data.jls"), OUT)

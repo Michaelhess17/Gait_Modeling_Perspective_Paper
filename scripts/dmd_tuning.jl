@@ -27,6 +27,8 @@ include("self_driving_benchmark.jl")
 
 "Modify eigenvalues in the complex Schur basis (keeps the rest of the operator)."
 function stabilise(A, P; mode = :clip)
+    mode in (:none, :clip, :unit) || throw(ArgumentError("unknown stabilisation mode: $mode"))
+    mode == :none && return copy(A)
     F = schur(complex(A)); T = copy(F.T)
     for i in axes(T, 1)
         λ = T[i, i]; m = abs(λ)
@@ -37,7 +39,7 @@ function stabilise(A, P; mode = :clip)
     return real(F.Z * T * F.Z')
 end
 
-function fit_dmd_variant(Y; τ, r, variant, P, ridge = 1e-8)
+function fit_dmd_variant(Y; τ, r, variant, P, ridge = 1e-8, stabilization = :default)
     d = size(Y, 2); H = build_hankel_multi(Y, τ)
     r = min(r, size(H, 1) - 1)
     U = svd(H).U[:, 1:r]
@@ -50,7 +52,8 @@ function fit_dmd_variant(Y; τ, r, variant, P, ridge = 1e-8)
     else
         Af
     end
-    A = stabilise(A, P; mode = variant == "unit" ? :unit : :clip)
+    mode = stabilization == :default ? (variant == "unit" ? :unit : :clip) : stabilization
+    A = stabilise(A, P; mode)
     function forecast(Ytr, n)
         h = vec(permutedims(Ytr[end-τ:end, :])); α = U' * h
         out = zeros(n, d)

@@ -23,7 +23,7 @@
 
 using Pkg; Pkg.activate(dirname(@__DIR__); io = devnull)
 include("paper_style.jl")
-using Serialization, Statistics, NPZ
+using Serialization, Statistics, NPZ, Random
 
 const DIR = joinpath(dirname(@__DIR__), "cache", "selfdrive")
 const SYSTEMS = [("fhn", "FitzHugh–Nagumo", (1, 2), ("v", "w")),
@@ -140,10 +140,18 @@ for f in readdir(DIR)
                          e1 = S["e1"][k]) for k in eachindex(S["fate_code"])])
 end
 
+# unconstrained Hankel-DMD, tuned on the training data by the same criterion (stabilization_benchmark.jl)
+fsb = joinpath(DIR, "stabilization_benchmark.jls")
+if isfile(fsb)
+    append!(allrows, [(; model = "DMD0", fate = o.retuned.fate, sys = o.system, reg = o.regime, e1 = o.retuned.e1)
+                      for o in deserialize(fsb)])
+end
+MODELS_B = vcat(MODELS, isfile(fsb) ? [("DMD0", CAT[1])] : Tuple{String, Any}[])
+LABEL_B = Dict("ESN" => "ESN", "NODE" => "neural ODE", "SSM" => "SSMLearnPy", "DMD" => "DMD, as tuned", "DMD0" => "DMD, no constraint")
 axB = Axis(gB[1, 1]; title = "Outcome after 30 free-running cycles",
-           xlabel = "Share of runs", yticks = (1:length(MODELS), [MODEL_LABEL[m] for (m, _) in MODELS]),
-           yreversed = true, limits = (0, 1, 0.4, length(MODELS) + 0.6))
-for (r, (m, _)) in enumerate(MODELS)
+           xlabel = "Share of runs", yticks = (1:length(MODELS_B), [LABEL_B[m] for (m, _) in MODELS_B]),
+           yreversed = true, limits = (0, 1, 0.4, length(MODELS_B) + 0.6))
+for (r, (m, _)) in enumerate(MODELS_B)
     mr = [x for x in allrows if x.model == m]
     isempty(mr) && continue
     left = 0.0
@@ -160,14 +168,14 @@ for (r, (m, _)) in enumerate(MODELS)
 end
 Legend(gB[2, 1], [PolyElement(color = FATE_COL[f]) for f in FATES],
        ["ok", "decays (right rhythm)", "wrong rhythm", "collapse", "blow-up"];
-       orientation = :horizontal, tellwidth = false, nbanks = 2)
+       orientation = :horizontal, tellwidth = false, nbanks = 3)
 Label(gB[1, 1, TopLeft()], "B"; fontsize = 10, font = :bold, padding = (0, 6, 2, 0))
 
 # ── (C) first-cycle error per system ─────────────────────────────────────────
 sysorder = ["fhn", "cfhn", "vdp2", "slip", "gait91", "gait243", "gait231", "gait63", "gait267"]
-axC = Axis(gB[1, 2]; title = "Free-run error, first cycle (realistic + long)",
+axC = Axis(gB[1, 2]; title = "Error over the first free-running cycle",
            xticks = (1:length(sysorder), ["FHN", "cFHN", "VdP", "SLIP", "gait 1", "2", "3", "4", "5"]),
-           ylabel = "Error (SD units)", yscale = log10, xticklabelrotation = 0)
+           ylabel = "Error (SD units)", yscale = log10, xticklabelrotation = π / 3, xticklabelsize = 6.5)
 for (k, s) in enumerate(sysorder)
     tpl = [x.e1 for x in allrows if x.sys == s && x.model == "template"]
     isempty(tpl) || lines!(axC, [k - 0.4, k + 0.4], fill(median(tpl), 2); color = C_TRUTH,
@@ -185,15 +193,37 @@ text!(axC, 0.6, 9; text = "points at 10 = diverged", fontsize = 6, color = C_REF
 Legend(gB[2, 2], vcat([MarkerElement(color = c, marker = :circle, markersize = 5) for (_, c) in MODELS],
                       [LineElement(color = C_TRUTH, linewidth = 1.2)]),
        vcat([m == "DMD" ? "DMD" : m for (m, _) in MODELS], ["mean-cycle template"]);
-       orientation = :horizontal, tellwidth = false, nbanks = 2)
+       orientation = :horizontal, tellwidth = false, nbanks = 3)
 Label(gB[1, 2, TopLeft()], "C"; fontsize = 10, font = :bold, padding = (0, 6, 2, 0))
-colsize!(gB, 1, Relative(0.48)); colgap!(gB, 16)
+# ── (D) R2: time within ε of the true cycle ───────────────────────────────────
+ftube = joinpath(DIR, "r2_tube.jls")
+if isfile(ftube)
+    tube = deserialize(ftube); EPS_D = 0.5; tg = 0:0.1:8
+    surv(recs) = [count(r -> r.exits[EPS_D] > t, recs) / length(recs) for t in tg]
+    axD = Axis(gB[1, 3]; title = "Time within ε of the true cycle", xlabel = "Free-running cycles",
+               ylabel = "Share of runs within ε", limits = (0, 8, 0, 1.03))
+    rng = MersenneTwister(3)
+    for (m, col, ls) in (("ESN", CAT[2], :solid), ("NODE", CAT[3], :solid), ("SSM", CAT[4], :solid),
+                         ("DMD0", CAT[1], :dash), ("DMD", CAT[1], :solid))
+        cellsm = [[r for r in o.recs if r.model == m] for o in tube]; cellsm = filter(!isempty, cellsm)
+        boot = reduce(hcat, [surv(reduce(vcat, cellsm[rand(rng, 1:length(cellsm), length(cellsm))])) for _ in 1:1000])
+        lo = [quantile(boot[i, :], 0.025) for i in eachindex(tg)]; hi = [quantile(boot[i, :], 0.975) for i in eachindex(tg)]
+        ls == :solid && band!(axD, collect(tg), lo, hi; color = (col, 0.15))
+        lines!(axD, collect(tg), surv(reduce(vcat, cellsm)); color = col, linestyle = ls, linewidth = 1.4)
+    end
+    text!(axD, 0.2, 0.05; text = "ε = $(EPS_D) cycle SD; held-out data\nstay within $(round(maximum(o.data_max for o in tube), digits = 2))",
+          fontsize = 6, color = C_REF, align = (:left, :bottom))
+    Legend(gB[2, 3], [LineElement(color = CAT[1], linestyle = :solid), LineElement(color = CAT[1], linestyle = :dash)],
+           ["DMD as tuned", "DMD, no constraint"]; orientation = :horizontal, tellwidth = false, nbanks = 2)
+    Label(gB[1, 3, TopLeft()], "D"; fontsize = 10, font = :bold, padding = (0, 6, 2, 0))
+end
+colsize!(gB, 1, Relative(0.34)); colsize!(gB, 2, Relative(0.35)); colgap!(gB, 18)
 
 rowsize!(fig.layout, 1, Relative(0.70))
 save_paper(fig, "Fig2_self_driving")
 
 println("\nOutcome counts (all systems, both regimes):")
-for (m, _) in vcat(MODELS, [("template", nothing)])
+for (m, _) in vcat(MODELS_B, [("template", nothing)])
     mr = [x for x in allrows if x.model == m]
     isempty(mr) && continue
     println(rpad(m, 9), " n=", lpad(length(mr), 3), "  ",

@@ -26,3 +26,19 @@ logs/
 
 # large regenerable data (scripts/slip_truth.jl)
 cache/truth/slip_walks/
+
+# external datasets (not redistributed here) and private pilot data
+data/maus_data/
+data/drosophila_data/
+data/*AccelPilot*
+
+# large regenerable caches (> 100 MB or close; rebuilt by their scripts)
+cache/fly/
+cache/maus/angles.jls
+cache/cross_species/inputs.jls
+cache/fig5/human_ltp_lowdim.jls
+cache/slip_ltp/recovery.jls
+
+# Quarto render output at the project root
+site_libs/
+index.tex
