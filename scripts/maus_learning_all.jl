@@ -16,7 +16,8 @@
 #   esn     300 units, phase input, ρ ∈ {0.5, 0.9} × leak ∈ {0.3, 1} × ridge ∈ {1e-4, 1e-2}, readout on the
 #           deviation and the reservoir; free run feeds back the predicted deviation with the exact phase
 #   lstm    (GPU mode) 128 units, Winner et al. training on the trial's training strides (one-stride segments, the
-#           last one validates), all trials of a size trained at once (fit_lstm_winner_many); no inner selection
+#           last one validates), all trials of a size trained at once (fit_lstm_winner_many); no inner selection;
+#           patience ≈ 2000 updates and at most 40000 (an epoch holds one update per training segment)
 # Usage: julia -t 16 --project=. scripts/maus_learning_all.jl cpu <η>       → cache/maus/learning_all_cpu_<η>.jls
 #        NIX_LD_LIBRARY_PATH=/run/opengl-driver/lib julia -t 8 --project=. scripts/maus_learning_all.jl lstm <η>
 const MODE = get(ARGS, 1, "cpu")
@@ -190,7 +191,10 @@ if abspath(PROGRAM_FILE) == (@__FILE__)
             trainseg < 1 && continue
             Xs = [Float32.(hcat(DD[i][2][1:nr, :], reduce(vcat, [collect(phase_cs(t))' for t in 1:nr]))) for i in ok]
             t0 = time()
-            ms = fit_lstm_winner_many(Xs; H = 128, lookback = L, trainseg, valseg, seed = 1, device = dev, verbose = false)
+            # patience and the epoch cap in updates (Winner et al.: 500 epochs × 4 segments ≈ 2000 updates), so that every
+            # training size gets a comparable budget; an epoch here holds `trainseg` updates
+            ms = fit_lstm_winner_many(Xs; H = 128, lookback = L, trainseg, valseg, seed = 1, device = dev, verbose = false,
+                                      patience = cld(2000, trainseg), max_epochs = cld(40000, trainseg))
             tfit = time() - t0
             r2 = Vector{Any}(undef, length(ok))
             Threads.@threads for j in eachindex(ok)
