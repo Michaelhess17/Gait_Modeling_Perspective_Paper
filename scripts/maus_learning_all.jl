@@ -17,7 +17,8 @@
 #           deviation and the reservoir; free run feeds back the predicted deviation with the exact phase
 #   lstm    (GPU mode) 128 units, Winner et al. training on the trial's training strides (one-stride segments, the
 #           last one validates), all trials of a size trained at once (fit_lstm_winner_many); no inner selection;
-#           patience ≈ 2000 updates and at most 40000 (an epoch holds one update per training segment)
+#           patience ≈ 2000 updates and at most 40000 (an epoch holds one update per training segment); deviation
+#           channels scaled to unit SD over the training rows (the phase inputs would otherwise dominate the loss)
 # Usage: julia -t 16 --project=. scripts/maus_learning_all.jl cpu <η>       → cache/maus/learning_all_cpu_<η>.jls
 #        NIX_LD_LIBRARY_PATH=/run/opengl-driver/lib julia -t 8 --project=. scripts/maus_learning_all.jl lstm <η>
 const MODE = get(ARGS, 1, "cpu")
@@ -143,15 +144,16 @@ function lstm_states(m, X)
     end
     Hs, Cs
 end
-function lstm_eval(m, D, Dn, ts)
+"Free-run R² of LSTM m from the test starts ts; the model works on deviations scaled by sd (channel SDs of the training rows)."
+function lstm_eval(m, D, Dn, ts, sd)
     n, p = size(Dn)
-    X = Float32.(vcat(Dn', reduce(hcat, [collect(phase_cs(t)) for t in 1:n])))
+    X = Float32.(vcat((Dn ./ sd')', reduce(hcat, [collect(phase_cs(t)) for t in 1:n])))
     Hs, Cs = lstm_states(m, X)
     E = zeros(length(HZ)); R = zeros(length(HZ))
     for t in ts
         carry = (Hs[:, t:t], Cs[:, t:t]); u, _ = m.head(carry[1], m.ps.h, m.sh); k = 1
         for st in 1:HZ[end]
-            if st == HZ[k]; E[k] += sum(abs2, u[1:p] .- D[t+st, :]); R[k] += sum(abs2, D[t+st, :]); k += 1; end
+            if st == HZ[k]; E[k] += sum(abs2, u[1:p] .* sd .- D[t+st, :]); R[k] += sum(abs2, D[t+st, :]); k += 1; end
             k > length(HZ) && break
             c, si = phase_cs(t + st); x = vcat(u[1:p], Float32[c, si])
             (o, carry), _ = m.cell((reshape(x, :, 1), carry), m.ps.c, m.sc); u, _ = m.head(o, m.ps.h, m.sh)
@@ -189,7 +191,10 @@ if abspath(PROGRAM_FILE) == (@__FILE__)
             isempty(ok) && continue
             L = 99; nr = ntr * NPH; valseg = 1; trainseg = (nr - 1 - valseg * L) ÷ (L + 1)
             trainseg < 1 && continue
-            Xs = [Float32.(hcat(DD[i][2][1:nr, :], reduce(vcat, [collect(phase_cs(t))' for t in 1:nr]))) for i in ok]
+            # each deviation channel scaled to unit SD over the training rows: unscaled, the deviations (SD ≈ 0.1) are
+            # swamped in the loss by the phase channels (cos² + sin² = 1), which the model then spends itself predicting
+            sds = [vec(std(DD[i][2][1:nr, :], dims = 1)) for i in ok]
+            Xs = [Float32.(hcat(DD[i][2][1:nr, :] ./ sds[j]', reduce(vcat, [collect(phase_cs(t))' for t in 1:nr]))) for (j, i) in enumerate(ok)]
             t0 = time()
             # patience and the epoch cap in updates (Winner et al.: 500 epochs × 4 segments ≈ 2000 updates), so that every
             # training size gets a comparable budget; an epoch here holds `trainseg` updates
@@ -200,7 +205,7 @@ if abspath(PROGRAM_FILE) == (@__FILE__)
             Threads.@threads for j in eachindex(ok)
                 S = SS[ok[j]]; n = size(S, 1); nh = n ÷ 2; D, Dn = DD[ok[j]]
                 te = nh*NPH+1:n*NPH; ts = (first(te) + HISTL):STEP:(last(te) - HZ[end])
-                r2[j] = (; trial = ok[j], r2 = lstm_eval(ms[j], D, Dn, ts), best_epoch = ms[j].best_epoch)
+                r2[j] = (; trial = ok[j], r2 = lstm_eval(ms[j], D, Dn, ts, sds[j]), best_epoch = ms[j].best_epoch)
             end
             out[ntr] = (; rows = r2, fit_secs = tfit, nmodels = length(ok))
             v = [x.r2 for x in r2]

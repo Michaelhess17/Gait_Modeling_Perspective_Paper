@@ -57,6 +57,9 @@ Paths are resolved relative to the repository root (`cache/`, `data/`, `figures/
 
 - `gait_group_fits.jl` — individual against group fits on all 299 gait trials (DMD, ESN, LSTM; planned supplementary figure).
 - `cohort_fits.jl` — individual against group fits on the simulated cohorts.
+- `iv_running.jl` — least-squares against instrumental-variable section maps on the running trials, by training strides,
+  and instrument strength (correlation of the section state one stride apart) for SLIP, running and walking; for the
+  planned merge of Figures 3 and 4.
 - `large_kicks_dmd_probe.jl`, `cfhn_density_probe.jl` — why DMD misses the coordination of coupled FHN (cycle harmonics,
   noise, training size, sampling density).
 - `iv_gait_stride.jl`, `iv_gait_operator.jl`, `fig6_bias_correction.jl`, `dmd_noise_variants.jl`, `floquet_tuned.jl`,

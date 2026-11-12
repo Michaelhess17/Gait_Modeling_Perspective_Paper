@@ -10,12 +10,15 @@
 # from the moving-average stride at each sample's actual phase (rt: interpolated within the stride that contains it),
 # i.e. skill against that average stride. Training: the first NTR strides; test: the second half; settings on an inner
 # split (maus_learning.jl). Models:
-#   dmd     Hankel-DMD on the whole signal (opfit), delay window 16–100 samples (up to a stride), rank 16–128
+#   dmd     Hankel-DMD on the whole signal (opfit), delay window 16–100 samples (up to a stride), rank 16–600, ridge
+#           α ∈ {1e-4, 1e-6, 1e-8} × S₁² (opfit's default 1e-4 shrinks every direction below ~1% of the leading singular
+#           value, which on the whole signal is the cycle's: it removes the deviation's dynamics, whatever the rank)
 #   esn     ESN on the whole signal, no phase input (as the self-driving benchmark), 300 units, 8 settings
 #   ltp     phase-varying affine linear model z_{t+1} = A(θ_t) z_t + b(θ_t) on the leading components of the last 8
 #           samples (A, b Fourier series in θ); sn: θ = position in the stride; rt: θ causal, the time since the last
 #           stride boundary over the previous stride's duration, advanced at that rate during a forecast
 # Usage: julia -t 16 --project=. scripts/maus_ladder.jl       → cache/maus/ladder.jls
+#        julia -t 16 --project=. scripts/maus_ladder.jl dmd   refit DMD only, replacing its entries in ladder.jls
 include("maus_learning_all.jl")
 const HISTW = 110
 
@@ -107,8 +110,8 @@ function esn_whole(Yv)
 end
 function ladder_families(Yv, rung, R)
     F = Dict{Symbol, Any}()
-    F[:dmd] = ([(d, r) for d in (16, 33, 50, 100) for r in (16, 32, 64, 128)],
-               (rows, s) -> begin A, U = opfit(Yv[rows, :]; d = s[1], r = s[2]); μ = mean(Yv[rows, :], dims = 1); t -> roll(A, U, μ, Yv, t, s[1], HZ[end]) end)
+    F[:dmd] = ([(d, r, α) for d in (16, 33, 50, 100) for r in (16, 32, 64, 128, 256, 450, 600) for α in (1e-4, 1e-6, 1e-8) if r <= 6d],
+               (rows, s) -> begin A, U = opfit(Yv[rows, :]; d = s[1], r = s[2], α = s[3]); μ = mean(Yv[rows, :], dims = 1); t -> roll(A, U, μ, Yv, t, s[1], HZ[end]) end)
     F[:esn] = esn_whole(Yv)
     ph = rung == :rt ? R.ph_rt : R.ph_sn
     phfun = rung == :rt ? ((t, s) -> mod(floor(Int, R.ph_rt[t] + NPH * R.rate_rt[t] * s), NPH)) : ((t, s) -> mod(t - 1 + s, NPH))
@@ -120,13 +123,13 @@ end
 safe(pred, lo, hi) = t -> (P = pred(t); P[.!isfinite.(P)] .= 0.0; clamp.(P, lo, hi))
 diverged(pred, ts, lo, hi) = mean(t -> (P = pred(t); any(!isfinite, P) || any(P .< lo) || any(P .> hi)), ts)
 
-function trial_ladder(X)
+function trial_ladder(X; only = nothing)
     R = rung_data(X); out = Dict{Tuple{Symbol, Symbol, Int}, Any}(); nh = R.n ÷ 2
     for rung in (:rt, :sn)
         Yv, Dv, bidx = rung == :rt ? (R.Yrt, R.Drt, R.bidx_rt) : (R.Y, R.D, R.bidx_sn)
         ts = (bidx[nh+1] + HISTW):STEP:(size(Yv, 1) - HZ[end])
         for (name, (settings, fit)) in ladder_families(Yv, rung, R), ntr in SIZES_ALL
-            ntr > nh && continue
+            (ntr > nh || (only !== nothing && name ∉ only)) && continue
             rows = 1:bidx[ntr+1]-1; inner = 1:bidx[ntr÷2+1]-1; va = bidx[ntr÷2+1]:bidx[ntr+1]-1
             vst = (first(va) + HISTW):STEP:(last(va) - HZ[HV[end]])
             isempty(vst) && continue
@@ -149,7 +152,14 @@ if abspath(PROGRAM_FILE) == (@__FILE__)
     BLAS.set_num_threads(1)
     A = deserialize(joinpath(ROOT, "cache", "maus", "angles.jls"))
     keep = [qc_run(pair_strides(t.X)) < 5 for t in A.trials]; T = A.trials[keep]
-    Rs = tmap(t -> trial_ladder(t.X), T); bad = count(isnothing, Rs)
+    if get(ARGS, 1, "") == "dmd"                                   # refit DMD only; keep the other models' entries
+        Rs = deserialize(joinpath(ROOT, "cache", "maus", "ladder.jls")).R
+        Rd = tmap(t -> trial_ladder(t.X; only = (:dmd,)), T)
+        for (r, rd) in zip(Rs, Rd); (r === nothing || rd === nothing) || merge!(r, rd); end
+    else
+        Rs = tmap(t -> trial_ladder(t.X), T)
+    end
+    bad = count(isnothing, Rs)
     dev = deserialize(joinpath(ROOT, "cache", "maus", "learning_all_cpu_0.0.jls"))
     @printf("%d trials (%d failed). Median R² of the deviation at 1/8 / 1/4 stride, by training strides\n", length(Rs) - bad, bad)
     @printf("%-14s", "strides"); for n in SIZES_ALL; @printf("%14d", n); end; println()
