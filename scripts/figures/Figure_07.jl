@@ -10,7 +10,7 @@
 #         the mean training stride)
 #   C     the deviation (cycle supplied) against the forecast horizon, 150 training strides
 #   D     the deviation, 1/8 stride ahead, against the number of training strides. Shaded: strides in a 15-s walking trial
-#   E     the deviation, 150 training strides, against added measurement noise (× each channel's deviation SD)
+#   E     the deviation, 150 training strides, against added measurement noise (× each channel's deviation SD); the LSTM was run without noise only
 # Usage: julia --project=. scripts/figures/Figure_07.jl   → figures/Figure_07.{pdf,svg,png}
 
 include(joinpath(@__DIR__, "..", "paper_style.jl"))
@@ -92,7 +92,7 @@ panel_label!(fig[2, 1], "D")
 axE = Axis(fig[2, 2]; xlabel = "added measurement noise (× deviation SD)", ylabel = "skill, ⅛ stride ahead",
            title = "deviation: added noise", xticks = [0, 0.5, 1])
 for (k, (m, nm, col, mk)) in enumerate(MODELS)
-    m == :lattice && continue
+    m in (:lattice, :lstm) && continue                    # LSTM: noise-free runs only
     ηs = [η for η in (0.0, 0.5, 1.0) if !isempty(vals(m, 150, η, 2))]
     isempty(ηs) && continue
     off = (k - 3) * 0.025
