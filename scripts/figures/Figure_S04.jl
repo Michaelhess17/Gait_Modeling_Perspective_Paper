@@ -74,7 +74,7 @@ scatter!(axC, [rad2deg(angle(λx))], [abs(λx)]; marker = :star5, color = CAT[4]
 scatter!(axC, [abs(s8.δ)], [s8.ρ]; marker = :rect, color = CAT[1], markersize = 6, strokecolor = :white, strokewidth = 0.5)
 text!(axC, rad2deg(angle(λx)) - 0.8, abs(λx) - 0.03; text = "exact", fontsize = 6.5, align = (:right, :top))
 scatter!(axC, [D.lattice[2]], [D.lattice[1]]; marker = :diamond, color = CAT[5], markersize = 6, strokecolor = :white, strokewidth = 0.4)
-text!(axC, D.lattice[2] + 1.2, D.lattice[1] - 0.025; text = "lattice fit\n(Fig S6)", fontsize = 6.5, color = CAT[5], align = (:left, :top))
+text!(axC, D.lattice[2] + 1.2, D.lattice[1] - 0.025; text = "lattice fit\n(Fig S8)", fontsize = 6.5, color = CAT[5], align = (:left, :top))
 plabel!(g[1, 3], "C")
 
 colsize!(g, 3, Relative(0.3)); colgap!(g, 14)

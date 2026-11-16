@@ -16,7 +16,7 @@ Paths are resolved relative to the repository root (`cache/`, `data/`, `figures/
 
 | Figure | Script | Shows | Reads | Made by |
 |---|---|---|---|---|
-| 1 | `figures/Figure_01.jl` | what Lyapunov exponents, Floquet multipliers and transient structure read from a disturbance response | — (exact linear examples) | — |
+| 1 | `figures/Figure_01.jl` | overview (schematic): walking is a cycle plus responses; the average stride and stability numbers miss the dynamics; what a model must provide (R1–R6) | — (schematic; exact toy systems) | — |
 | 2 | `figures/Figure_02.jl` | walking is disturbed again before it recovers | `cache/fig1/transient.jls`, `cache/truth` | `fig1_transient_data.jl`; `slip_truth.jl` (SLIP.jl env), `systems_truth.jl` |
 | 3 | `figures/Figure_03.jl` | data-driven Floquet multipliers of SLIP: data-hungry, noise-biased, correctable for a linear map | `cache/fig3` | `fig3_slip_maps.jl`, `slip_truth.jl` |
 | 4 | `figures/Figure_04.jl` | gait recordings are mostly the mean cycle | `cache/fig5/gait.jls` | `fig5_gait_data.jl` |
@@ -54,6 +54,9 @@ Paths are resolved relative to the repository root (`cache/`, `data/`, `figures/
   running data, deviations, phase-varying linear model (`fit_ltp`), lattice and baselines.
 
 ## Analyses without a figure (results quoted in the text, or in progress)
+
+- `gait_dimensionality.jl` — how many principal directions the whole signal and the departures from the average stride
+  occupy in the 299 walking trials (quoted in the introduction) → `cache/fig5/dims.jls`.
 
 - `gait_group_fits.jl` — individual against group fits on all 299 gait trials (DMD, ESN, LSTM; planned supplementary figure).
 - `cohort_fits.jl` — individual against group fits on the simulated cohorts.
