@@ -42,3 +42,4 @@ cache/slip_ltp/recovery.jls
 # Quarto render output at the project root
 site_libs/
 index.tex
+cache/maus/ssm_input/

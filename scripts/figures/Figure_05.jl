@@ -231,18 +231,25 @@ for (m, _) in vcat(MODELS_B, [("template", nothing)])
             join(["$(f) $(count(x -> x.fate == f, mr))" for f in FATES], "  "))
 end
 
-# Panel C as numbers: median first-cycle free-run error per cell, and skill against the mean-cycle reference forecast
-# (1 − model / template; 0 = no better than the mean cycle, 1 = exact), as weather forecasts are scored against
-# climatology.
+# Panel C as numbers: median first-cycle free-run error per cell, and the relative remaining variance against the
+# mean-cycle reference forecast, (model error / template error)² = MSE / MSE of the mean cycle (1 = no better than the
+# mean cycle, 0 = exact; e1 is an RMS error over the first cycle).
 fin(v) = filter(isfinite, v)
+rrv_range = Dict{Tuple{String, String}, Vector{Float64}}()
 for reg in ("long", "realistic")
-    println("\nFirst-cycle forecast error, $reg regime (median over seeds/settings; skill against the mean cycle):")
+    println("\nFirst-cycle forecast error, $reg regime (median over seeds/settings; relative remaining variance):")
     for s in sort(unique(x.sys for x in allrows if x.reg == reg))
         t = median(fin([x.e1 for x in allrows if x.sys == s && x.reg == reg && x.model == "template"]))
         cells = map(("DMD", "ESN", "NODE", "SSM")) do m
             v = fin([x.e1 for x in allrows if x.sys == s && x.reg == reg && x.model == m])
-            isempty(v) ? "$(m) —" : @sprintf("%s %.3f (%+.2f)", m, median(v), 1 - median(v) / t)
+            isempty(v) && return "$(m) —"
+            r = (median(v) / t)^2; push!(get!(rrv_range, (m, reg), Float64[]), r)
+            @sprintf("%s %.3f (%.3g)", m, median(v), r)
         end
         println(rpad(s, 8), @sprintf(" template %.3f | ", t), join(cells, "  "))
     end
+end
+println("\nRelative remaining variance, first cycle, range over cells (scorecard R1):")
+for m in ("NODE", "ESN", "SSM", "DMD"), reg in ("long", "realistic")
+    v = get(rrv_range, (m, reg), Float64[]); isempty(v) || @printf("%-5s %-9s %.3g to %.3g\n", m, reg, extrema(v)...)
 end

@@ -10,8 +10,9 @@
 #   multistart rollout  mean error of 1-cycle free runs from 5 starts across the held-out cycles
 # then refitted on the full training window and run freely (test: first held-out test cycle, and 30-cycle fate).
 #   (A) Rank correlation across settings between each validation error and the test forecast error, one dot per cell.
-#   (B) Test forecast skill (1 − error / mean-cycle reference error) of the setting each criterion would choose, one
-#       dot per cell (clipped at the bottom; open: clipped); "best on test" is the setting with the lowest test error.
+#   (B) Test relative remaining variance (MSE / MSE of the mean-cycle reference forecast = (error / reference error)²)
+#       of the setting each criterion would choose, one dot per cell (clipped at the top; open: clipped); "best on test"
+#       is the setting with the lowest test error.
 #       Text: number of cells where the chosen setting keeps the right cycle over 30 cycles.
 #
 # Usage: julia --project=. scripts/figures/Figure_S02.jl      (reads cache/selfdrive/validation_criteria.jls)
@@ -25,7 +26,7 @@ cells = deserialize(joinpath(ROOT, "cache", "selfdrive", "validation_criteria.jl
 const CRIT = [(:train1, "in-sample\n1-step"), (:val1, "held-out\n1-step"), (:valroll, "held-out\nrollout"),
               (:valmulti, "multistart\nrollout")]
 const MODELS = [("DMD", CAT[1], :circle, -0.17), ("ESN", CAT[2], :utriangle, 0.17)]
-const FLOOR = -3.0
+const CEIL = 30.0; const FLO = 1e-4                 # relative remaining variance above / below these is clipped
 plabel!(pos, L) = Label(pos[1, 1, TopLeft()], L; fontsize = 10, font = :bold, padding = (0, 6, 2, 0), halign = :right)
 fin(x) = isfinite(x) ? x : 1e9
 function rk(v)                                         # average ranks (as validation_criteria.jl)
@@ -41,10 +42,10 @@ jit = MersenneTwister(3)
 fig = Figure(size = (COL2, 72MM))
 axA = Axis(fig[1, 1]; ylabel = "Rank correlation with test\nforecast error, across settings",
            title = "Rollout errors track test forecasts", xticks = (1:4, last.(CRIT)), limits = (0.4, 4.6, -1.05, 1.05))
-axB = Axis(fig[1, 2]; ylabel = "Test forecast skill of the\nchosen setting (vs mean cycle)",
+axB = Axis(fig[1, 2]; ylabel = "Test remaining variance of the chosen\nsetting (relative to the mean cycle)", yscale = log10,
            title = "What each criterion chooses", xticks = (1:5, vcat(last.(CRIT), ["best\non test"])),
-           limits = (0.4, 5.6, FLOOR - 0.3, 1.85))
-hlines!(axA, 0.0; color = C_REF, linewidth = 0.6); hlines!(axB, 0.0; color = C_REF, linewidth = 0.6)
+           yticks = ([1e-4, 1e-3, 1e-2, 0.1, 1, 10], ["≤ 0.0001", "0.001", "0.01", "0.1", "1", "10"]), limits = (0.4, 5.6, 6e-5, 400))
+hlines!(axA, 0.0; color = C_REF, linewidth = 0.6); hlines!(axB, 1.0; color = C_REF, linewidth = 0.6)
 for (m, col, mk, dx) in MODELS
     for (j, (k, _)) in enumerate(CRIT)
         ρ = Float64[]
@@ -60,19 +61,19 @@ for (m, col, mk, dx) in MODELS
         for c in cells
             R = [r for r in c.rows if r.model == m]
             x = j == 5 ? R[argmin([fin(r.e1) for r in R])] : R[argmin([fin(getfield(r, CRIT[j][1])) for r in R])]
-            push!(sk, isfinite(x.e1) ? 1 - x.e1 / c.template_e1 : -Inf); nok += x.fate == "ok"
+            push!(sk, isfinite(x.e1) ? (x.e1 / c.template_e1)^2 : Inf); nok += x.fate == "ok"
         end
-        xs = j + dx .+ 0.05 .* randn(jit, length(sk)); low = sk .< FLOOR
-        scatter!(axB, xs[.!low], sk[.!low]; color = (col, 0.55), marker = mk, markersize = 5)
-        any(low) && scatter!(axB, xs[low], fill(FLOOR, count(low)); color = :white, strokecolor = col, strokewidth = 0.8,
-                             marker = mk, markersize = 5)
-        lines!(axB, [j + dx - 0.12, j + dx + 0.12], fill(clamp(median(sk), FLOOR, 2), 2); color = col, linewidth = 2)
-        text!(axB, j + dx, 1.17; text = "$nok", fontsize = 6.5, color = col, align = (:center, :bottom))
+        xs = j + dx .+ 0.05 .* randn(jit, length(sk)); hi = sk .> CEIL
+        scatter!(axB, xs[.!hi], max.(sk[.!hi], FLO); color = (col, 0.55), marker = mk, markersize = 5)
+        any(hi) && scatter!(axB, xs[hi], fill(CEIL, count(hi)); color = :white, strokecolor = col, strokewidth = 0.8,
+                            marker = mk, markersize = 5)
+        lines!(axB, [j + dx - 0.12, j + dx + 0.12], fill(clamp(median(sk), FLO, CEIL), 2); color = col, linewidth = 2)
+        text!(axB, j + dx, 70; text = "$nok", fontsize = 6.5, color = col, align = (:center, :bottom))
     end
 end
-text!(axB, 0.45, 1.82; text = "cells where the choice keeps the cycle (of 13):", fontsize = 6.5, color = C_REF,
+text!(axB, 0.45, 380; text = "cells where the choice keeps the cycle (of 13):", fontsize = 6.5, color = C_REF,
       align = (:left, :top))
-text!(axB, 5.55, FLOOR - 0.25; text = "open: below $(Int(FLOOR))", fontsize = 6.5, color = C_REF, align = (:right, :bottom))
+text!(axB, 5.55, 3e-3; text = "open: above $(Int(CEIL))", fontsize = 6.5, color = C_REF, align = (:right, :bottom))
 axislegend(axA, [MarkerElement(color = col, marker = mk, markersize = 6) for (_, col, mk, _) in MODELS],
            first.(MODELS); position = :lb, framevisible = false, labelsize = 7, padding = (2, 2, 2, 2))
 plabel!(fig[1, 1], "A"); plabel!(fig[1, 2], "B")

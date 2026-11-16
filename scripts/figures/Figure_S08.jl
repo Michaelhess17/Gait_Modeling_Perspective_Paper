@@ -12,16 +12,17 @@
 #   drifts; on noise-driven walks of 15 steps (scripts/gait_lattice.jl) the modulus is close, the rotation is not.
 #   (C) SLIP off-cycle metrics, 4 starts: |error| of the 4-step relaxation rate (Fig 6B's metric) and distance to
 #   the true cycle after 25 steps / initial (median over starts). Dots: fits (seeds).
-#   (D) Human gait and kicked SLIP walks: R² of the deviation from the mean stride 1 stride ahead (filled; 2 strides
+#   (D) Human gait and kicked SLIP walks: relative remaining variance (MSE / MSE of the mean stride = 1 − R² of the
+#   deviation from the mean stride) 1 stride ahead (filled; 2 strides
 #   ahead, open) from half a stride of data, median and IQR over trials. The multiplier and the DMD rank are chosen on
 #   the person's other trials. Deviation DMD: delay DMD on the deviations; companion DMD: the companion paper's
 #   operator on the full signal (cycle included), scored on its deviation.
 #   (E) Is the multiplier identified? Each trial's normalised forecast error over strides +1 and +2 against the
 #   assumed modulus (best rotation at each), median and IQR over trials: kicked SLIP walks have a minimum near the
 #   truth; gait profiles are flat at the mean stride's error, so the per-person multipliers (text) are not identified.
-#   (F) Lattice skill by horizon with the multiplier chosen out of trial (solid) or on the scored strides themselves
+#   (F) Lattice relative remaining variance by horizon with the multiplier chosen out of trial (solid) or on the scored strides themselves
 #   (dashed), and the same on stride-shuffled copies of each trial (dotted; scripts/gait_lattice_null.jl): on gait
-#   about half of the on-test skill is selection, and the rest does not carry over to the person's other trials.
+#   about half of the on-test variance reduction is selection, and the rest does not carry over to the person's other trials.
 
 using Pkg; Pkg.activate(dirname(dirname(@__DIR__)); io = devnull)
 include(joinpath(@__DIR__, "..", "paper_style.jl"))
@@ -99,34 +100,34 @@ for (k, (m, _, col, mk)) in enumerate(MODS)
 end
 colgap!(gC, 10); plabel!(gC[1, 1], "C")
 
-# ── D: gait forecast skill ───────────────────────────────────────────────────
+# ── D: gait forecasts, relative remaining variance ───────────────────────────
 GR = [("SLIP\nwalks", G.slip_held), ("AB", G.held[G.grp .== "AB"]), ("HF", G.held[G.grp .== "HF"]), ("LF", G.held[G.grp .== "LF"])]
 FM = [(:lat, "lattice", C_LAT, :diamond), (:ddmd, "deviation DMD", CAT[1], :circle), (:cdmd, "companion DMD", C_REF, :rect)]
-YLO = -0.7
-aD = Axis(bot[1, 1]; ylabel = "R², deviation (0 = mean stride)", title = "Forecasting the next strides",
-          xticks = (1:4, first.(GR)), limits = (0.45, 4.55, YLO, 0.75))
-hlines!(aD, 0.0; color = C_REF, linewidth = 0.6)
+YHI = 1.7; YLO = 0.25
+aD = Axis(bot[1, 1]; ylabel = "Remaining variance (1 = mean stride)", title = "Forecasting the next strides",
+          xticks = (1:4, first.(GR)), limits = (0.45, 4.55, YLO, YHI))
+hlines!(aD, 1.0; color = C_REF, linewidth = 0.6)
 for (gi, (_, H)) in enumerate(GR)
     H = filter(!isnothing, H)
     for (mi, (f, _, col, mk)) in enumerate(FM)
         x = gi + (mi - 2) * 0.24
-        v1 = [getfield(h, f)[2] for h in H]; v2 = [getfield(h, f)[3] for h in H]
+        v1 = [1 - getfield(h, f)[2] for h in H]; v2 = [1 - getfield(h, f)[3] for h in H]          # 1 − R²
         q1, m1, q3 = quantile(v1, (0.25, 0.5, 0.75))
-        lines!(aD, [x, x], clamp.([q1, q3], YLO + 0.01, 0.74); color = col, linewidth = 1.2)
-        scatter!(aD, [x], [clamp(m1, YLO + 0.02, 0.74)]; color = col, marker = mk, markersize = 6, strokecolor = :white, strokewidth = 0.4)
-        scatter!(aD, [x + 0.08], [clamp(median(v2), YLO + 0.02, 0.74)]; color = :transparent, strokecolor = col, strokewidth = 0.8, marker = mk, markersize = 4.5)
-        m1 < YLO && text!(aD, x, YLO + 0.05; text = @sprintf("%.1f", m1), fontsize = 5.5, color = C_REF, align = (:center, :bottom))
+        lines!(aD, [x, x], clamp.([q1, q3], YLO + 0.01, YHI - 0.01); color = col, linewidth = 1.2)
+        scatter!(aD, [x], [clamp(m1, YLO + 0.02, YHI - 0.02)]; color = col, marker = mk, markersize = 6, strokecolor = :white, strokewidth = 0.4)
+        scatter!(aD, [x + 0.08], [clamp(median(v2), YLO + 0.02, YHI - 0.02)]; color = :transparent, strokecolor = col, strokewidth = 0.8, marker = mk, markersize = 4.5)
+        m1 > YHI && text!(aD, x, YHI - 0.05; text = @sprintf("%.1f", m1), fontsize = 5.5, color = C_REF, align = (:center, :top))
     end
 end
 for (mi, (_, lab, col, mk)) in enumerate(FM)
-    scatter!(aD, [2.85], [0.71 - 0.085 * (mi - 1)]; color = col, marker = mk, markersize = 5)
-    text!(aD, 2.93, 0.71 - 0.085 * (mi - 1); text = lab, fontsize = 6.5, align = (:left, :center))
+    scatter!(aD, [2.85], [0.31 + 0.085 * (mi - 1)]; color = col, marker = mk, markersize = 5)
+    text!(aD, 2.93, 0.31 + 0.085 * (mi - 1); text = lab, fontsize = 6.5, align = (:left, :center))
 end
-text!(aD, 2.85, 0.45; text = "filled: +1 stride\nopen: +2 strides", fontsize = 6.5, color = C_REF, align = (:left, :top))
+text!(aD, 2.85, 0.58; text = "filled: +1 stride\nopen: +2 strides", fontsize = 6.5, color = C_REF, align = (:left, :bottom))
 plabel!(bot[1, 1], "D")
 
 # ── E: is the multiplier identified? forecast error against the assumed modulus ──
-aE = Axis(bot[1, 2]; xlabel = "Assumed multiplier modulus per stride", ylabel = "Forecast error, strides +1, +2\n(1 = mean stride; median, IQR)",
+aE = Axis(bot[1, 2]; xlabel = "Assumed multiplier modulus per stride", ylabel = "Remaining variance, strides +1, +2\n(1 = mean stride; median, IQR)",
           title = "Only SLIP walks pick a multiplier", limits = (0, 1, 0.45, 1.35), xticks = 0:0.25:1)
 hlines!(aE, 1.0; color = C_REF, linewidth = 0.6)
 vlines!(aE, ex_mod; color = C_TRUTH, linewidth = 0.6, linestyle = :dot)
@@ -145,22 +146,22 @@ for (k, (lab, R, _, col)) in enumerate(GLINES)
 end
 plabel!(bot[1, 2], "E")
 
-# ── F: skill by horizon, chosen out of trial vs on the scored strides ────────
-aF = Axis(bot[1, 3]; ylabel = "R², lattice model", title = "Gait skill does not transfer",
-          xticks = (1:3, ["rest of\nstride", "+1\nstride", "+2\nstrides"]), limits = (0.6, 3.4, -0.15, 1.0))
-hlines!(aF, 0.0; color = C_REF, linewidth = 0.6)
+# ── F: remaining variance by horizon, μ chosen out of trial vs on the scored strides ──
+aF = Axis(bot[1, 3]; ylabel = "Remaining variance, lattice model", title = "Gait forecasts do not transfer",
+          xticks = (1:3, ["rest of\nstride", "+1\nstride", "+2\nstrides"]), limits = (0.6, 3.4, 0.0, 1.15))
+hlines!(aF, 1.0; color = C_REF, linewidth = 0.6)
 for (lab, _, H, col) in GLINES
     H = filter(!isnothing, H); sh = lab == "SLIP walks" ? NUL.slip : NUL.gait[lab]
-    hon = [median(h.lat[b] for h in H) for b in 1:3]; ins = [median(h.insample[b] for h in H) for b in 1:3]
-    lines!(aF, 1:3, [median(v[b] for v in sh) for b in 1:3]; color = col, linewidth = 0.9, linestyle = :dot)
+    hon = [1 - median(h.lat[b] for h in H) for b in 1:3]; ins = [1 - median(h.insample[b] for h in H) for b in 1:3]   # 1 − R²
+    lines!(aF, 1:3, [1 - median(v[b] for v in sh) for b in 1:3]; color = col, linewidth = 0.9, linestyle = :dot)
     lines!(aF, 1:3, ins; color = col, linewidth = 0.8, linestyle = :dash)
     lines!(aF, 1:3, hon; color = col, linewidth = 1.2); scatter!(aF, 1:3, hon; color = col, markersize = 4)
 end
-text!(aF, 2.05, 0.66; text = "SLIP walks", fontsize = 6.5, align = (:left, :bottom))
-text!(aF, 0.66, 0.19; text = "gait\n(colours as E)", fontsize = 6.5, align = (:left, :bottom))
+text!(aF, 2.5, 0.62; text = "SLIP walks", fontsize = 6.5, align = (:center, :center))
+text!(aF, 0.66, 0.78; text = "gait\n(colours as E)", fontsize = 6.5, align = (:left, :top))
 for (k, (ls, lw, lab)) in enumerate(((:solid, 1.2, "μ out of trial"), (:dash, 0.8, "μ on scored strides"),
                                      (:dot, 0.9, "same, shuffled order")))
-    y = 0.97 - 0.08 * (k - 1)
+    y = 0.05 + 0.08 * (3 - k)
     lines!(aF, [1.7, 1.85], [y, y]; color = C_REF, linewidth = lw, linestyle = ls)
     text!(aF, 1.9, y; text = lab, fontsize = 6.5, color = C_REF, align = (:left, :center))
 end
