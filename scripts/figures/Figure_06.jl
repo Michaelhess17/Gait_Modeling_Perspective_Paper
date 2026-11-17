@@ -1,92 +1,74 @@
 #!/usr/bin/env julia
-# Figure_06.jl — Forecasting the predictable short-time response (SLIP, with ceiling) (manuscript: @fig-predictable). Run: julia --project=. scripts/figures/Figure_06.jl
-# Figure: how much of the predictable short-time response do fitted models forecast? (R1)
-# Data: scripts/slip_predictable_truth.jl (SLIP.jl env) → scripts/predictable_response.jl → cache/predictable/slip_results.jls
-#   (A) one test start (SLIP with feedback, full state, 60 training steps): height deviation from the mean step
-#   (B–D) remaining variance relative to the mean-cycle forecast (MSE / MSE of the mean cycle) over the horizon: floor
-#         (noise-free continuation of the true state),
-#         Hankel-DMD, ESN (median of 4 seeds), persistence; solid 60 training steps, dashed 300
+# Figure_06.jl — Modelling the deviation from the cycle on long running recordings (manuscript: @fig-running). Run: julia --project=. scripts/figures/Figure_06.jl
+# What does modelling the whole system cost, and how many strides, and how clean, does each model class need to
+# forecast the deviations of human running? (maus_ladder.jl, maus_learning_all.jl, maus_node.jl, maus_ssm.py; 22 long
+# treadmill running trials, Maus et al. 2015). Deviation: relative remaining variance, MSE(forecast) / MSE(average stride)
+# = 1 − R² of the deviation from the 61-stride moving-average stride (1: no better than the average stride, 0: exact);
+# medians and interquartile ranges over trials. Models: linear (solid; DMD's blue family) and nonlinear (dashed; ESN, LSTM, neural
+# ODE, SSMLearnPy in the colours of the other figures).
+#   A, B  prediction horizons of the whole signal, 150 training strides, each scored in its own time frame: NRMSE of the
+#         joint angles (RMSE / SD of the signal), against a mean-cycle template (A: real time, the mean training stride
+#         with its phase taken from the history and advanced at the previous stride's rate; B: stride-normalised time,
+#         the mean training stride)
+#   C     the deviation (the moving-average stride and the stride timing given) against the forecast horizon, 150 training strides
+#   (training strides and added noise: Figure_09.jl, R4)
+# Usage: julia --project=. scripts/figures/Figure_06.jl   → figures/Figure_06.{pdf,svg,png}
 
-using Pkg; Pkg.activate(dirname(dirname(@__DIR__)); io = devnull)
-include(joinpath(@__DIR__, "..", "paper_style.jl"))
-using Serialization, Statistics, Printf
+include(joinpath(@__DIR__, "running_common.jl"))
 
-const ROOT = dirname(dirname(@__DIR__))
-R = deserialize(joinpath(ROOT, "cache", "predictable", "slip_results.jls"))
-get(κ, n, obs) = only(filter(o -> o.κ == κ && o.NTR == n && o.obs == obs, R))
-plabel!(pos, L) = Label(pos[1, 1, TopLeft()], L; fontsize = 10, font = :bold, padding = (0, 6, 2, 0), halign = :right)
-C_DMD = CAT[1]; C_ESN = CAT[2]
-const SPS = 100                                     # samples per stride
-binned(v; w = 10) = [mean(v[i:i+w-1]) for i in 1:w:length(v)-w+1]
-hx(v; w = 10) = ((0:length(binned(v; w))-1) .+ 0.5) .* w ./ SPS
-esn_med(o; y = false) = vec(median(reduce(hcat, [(y ? o.skilly : o.skill)["ESN $sd"] for sd in 1:4]); dims = 2))
-
-fig = Figure(size = (COL2, 112MM))
-gA = fig[1, 1] = GridLayout(); gB = fig[1, 2] = GridLayout()
-gC = fig[2, 1] = GridLayout(); gD = fig[2, 2] = GridLayout()
-colgap!(fig.layout, 16); rowgap!(fig.layout, 10)
-
-# ── A: one forecast ─────────────────────────────────────────────────────────
-o = get(0.1, 60, :full); ex = o.examples[2]
-th = ((1:size(ex.hist, 1)) .- size(ex.hist, 1)) ./ SPS; tf = (1:size(ex.fut, 1)) ./ SPS
-mfut = ex.fc["mean cycle"]
-dev(F, M) = F[:, 1] .- M[:, 1]                       # height deviation from the mean step (z units)
-axA = Axis(gA[1, 1]; xlabel = "Strides from the forecast start", ylabel = "Height deviation\nfrom the mean step (SD)",
-           title = "One forecast: SLIP with feedback")
-refline!(axA, 0.0; linestyle = :solid)
-vlo = [h for h in 1:size(ex.fut, 1) if mod1(ex.j + h, 50) == 1] ./ SPS
-for v in vlo; vlines!(axA, v; color = (C_REF, 0.35), linewidth = 0.6, linestyle = :dot); end
-lines!(axA, th, dev(ex.hist, ex.mstep_hist); color = (C_REF, 0.9), linewidth = 0.9, label = "observed (noisy)")
-lines!(axA, tf, dev(ex.fut, mfut); color = C_TRUTH, linewidth = 1.4, label = "what happened")
-lines!(axA, tf, dev(Float64.(ex.fc["ceiling"]), mfut); color = C_TRUTH, linestyle = :dash, linewidth = 1.1,
-       label = "predictable part (floor)")
-for sd in 1:4
-    lines!(axA, tf, dev(Float64.(ex.fc["ESN $sd"]), mfut); color = (C_ESN, 0.6), linewidth = 0.8,
-           label = sd == 1 ? "ESN, 4 seeds" : nothing)
+LAD = deserialize(joinpath(ROOT, "cache", "maus", "ladder.jls"))
+REF = deserialize(joinpath(ROOT, "cache", "maus", "ladder_reference.jls"))
+NODEW = (f = joinpath(ROOT, "cache", "maus", "node_whole.jls"); isfile(f) ? deserialize(f).out : nothing)
+"Skill of the whole-signal model m on trial i (the same 22 trials, in the same order, in every cache)."
+function wskill(rung, m, i, h)
+    m == :template && return REF.R[i][rung].ref_causal[h]
+    m == :node && return NODEW[rung].rows[i].r2[h]
+    m == :ssm && return SSM["whole"][i, rung == :rt ? 1 : 2, h]
+    LAD.R[i][(rung, m, 150)].r2[h]
 end
-lines!(axA, tf, dev(Float64.(ex.fc["DMD 0"]), mfut); color = C_DMD, linewidth = 1.2, label = "Hankel-DMD")
-axislegend(axA; position = (:right, :top), labelsize = 6.5, patchsize = (12, 5), unique = true)
-yl = maximum(abs, dev(ex.hist, ex.mstep_hist))
-text!(axA, vlo[1], -yl; text = "dotted: next disturbances", fontsize = 6, color = C_REF,
-      align = (:left, :bottom), offset = (2, 0))
-xlims!(axA, -2, 3); ylims!(axA, -1.1yl, 1.75yl)
-plabel!(gA[1, 1], "A")
-
-# ── B–D: relative remaining variance over the horizon (1 − skill; skill = 1 − MSE / MSE of the mean cycle) ──
-function skillpanel!(g, κ, obs, title; y = false, label = "")
-    ax = Axis(g[1, 1]; xlabel = "Forecast horizon (strides)", ylabel = "Remaining variance\n(relative to the mean cycle)",
-              title, limits = (0, 3, -0.02, 1.6), yticks = [0, 0.5, 1, 1.5])
-    vspan!(ax, 0, 1; color = C_SHADE)
-    refline!(ax, 1.0; linestyle = :solid)
-    for (n, ls) in ((60, :solid), (300, :dash))
-        o = get(κ, n, obs); S = Dict(k => 1 .- v for (k, v) in (y ? o.skilly : o.skill))
-        n == 60 && lines!(ax, hx(S["persistence"]), binned(S["persistence"]); color = C_REF, linestyle = :dot,
-                          linewidth = 1.0, label = "persistence (last step)")
-        n == 60 && lines!(ax, hx(S["ceiling"]), binned(S["ceiling"]); color = C_TRUTH, linewidth = 1.6,
-                          label = "floor: no future disturbances")
-        lines!(ax, hx(S["DMD 0"]), binned(S["DMD 0"]); color = C_DMD, linestyle = ls, linewidth = 1.3,
-               label = n == 60 ? "Hankel-DMD" : nothing)
-        lines!(ax, hx(S["ESN 1"]), 1 .- binned(esn_med(o; y)); color = C_ESN, linestyle = ls, linewidth = 1.3,
-               label = n == 60 ? "ESN (median of 4 seeds)" : nothing)
+"NRMSE of the predicted joint angles (RMSE / SD of the signal) over trials, in representation rung (:rt or :sn)."
+nrmse(rung, m, h) = filter(isfinite, [sqrt(max((1 - wskill(rung, m, i, h)) * REF.R[i][rung].devfrac[h], 0))
+                                      for i in eachindex(LAD.R) if LAD.R[i] !== nothing])
+WHOLE = [(:ltp, C_LTP, :diamond, :solid), (:dmd, CAT[1], :circle, :solid), (:esn, CAT[2], :utriangle, :dash)]
+NODEW === nothing || push!(WHOLE, (:node, CAT[3], :hexagon, :dash))
+SSM === nothing || push!(WHOLE, (:ssm, CAT[4], :star5, :dash))
+fig = Figure(size = (COL2, 70MM))
+# A, B: prediction horizons of the whole signal, each scored in its own time frame against its own mean-cycle template
+for (j, (rung, ttl, tl)) in enumerate(((:rt, "whole signal, real time", "mean stride,\nphase from the history"),
+                                       (:sn, "whole signal, stride time", "mean stride")))
+    ax = Axis(fig[1, j]; xlabel = "forecast horizon (stride)", ylabel = j == 1 ? "error of the joint angles (NRMSE)" : "",
+              title = ttl, xticks = ([0.25, 0.5, 0.75, 1.0], ["¼", "½", "¾", "1"]))
+    for (m, col, mk, ls) in WHOLE
+        band!(ax, HZ ./ 100, [q(nrmse(rung, m, h), 0.25) for h in eachindex(HZ)], [q(nrmse(rung, m, h), 0.75) for h in eachindex(HZ)]; color = (col, 0.12))
+        scatterlines!(ax, HZ ./ 100, [median(nrmse(rung, m, h)) for h in eachindex(HZ)]; color = col, marker = mk, markersize = 5, linestyle = ls)
     end
-    label != "" && text!(ax, 2.95, 1.57; text = label, fontsize = 6.5, color = C_REF, align = (:right, :top))
-    ax
+    lines!(ax, HZ ./ 100, [median(nrmse(rung, :template, h)) for h in eachindex(HZ)]; color = C_TRUTH, linestyle = :dash, linewidth = 1.2)
+    text!(ax, 1.0, 0.24; text = "dashed: " * tl, fontsize = 5.5, align = (:right, :top))
+    xlims!(ax, 0, 1.05); ylims!(ax, 0, 0.25)
+    panel_label!(fig[1, j], ("A", "B")[j])
 end
-axB = skillpanel!(gB, 0.1, :full, "SLIP with feedback, full CoM state"; label = "solid 60, dashed 300 training steps")
-axislegend(axB; position = (:right, :bottom), labelsize = 6.5, patchsize = (12, 5))
-plabel!(gB[1, 1], "B")
-skillpanel!(gC, 0.0, :full, "SLIP open loop, full CoM state"); plabel!(gC[1, 1], "C")
-skillpanel!(gD, 0.1, :height, "SLIP with feedback, height only"); plabel!(gD[1, 1], "D")
-
+# C: the deviation, against the horizon
+axC = Axis(fig[1, 3]; xlabel = "forecast horizon (stride)", ylabel = "remaining variance (rel. to average stride)", title = "deviation (cycle and timing given)",
+           xticks = ([0.25, 0.5, 0.75, 1.0], ["¼", "½", "¾", "1"]))
+refline!(axC, 1)
+for (m, nm, col, mk, ls) in MODELS
+    hs = [h for h in eachindex(HZ) if !isempty(vals(m, 150, 0.0, h))]
+    isempty(hs) && continue
+    band!(axC, HZ[hs] ./ 100, [q(vals(m, 150, 0.0, h), 0.25) for h in hs], [q(vals(m, 150, 0.0, h), 0.75) for h in hs]; color = (col, 0.12))
+    scatterlines!(axC, HZ[hs] ./ 100, [median(vals(m, 150, 0.0, h)) for h in hs]; color = col, marker = mk, markersize = 5, linestyle = ls, label = nm)
+end
+xlims!(axC, 0, 1.05); ylims!(axC, 0, 1.3)
+panel_label!(fig[1, 3], "C")
+leg_el = vcat([[LineElement(color = col, linestyle = ls), MarkerElement(color = col, marker = mk, markersize = 6)] for (_, _, col, mk, ls) in MODELS],
+              [[LineElement(color = C_TRUTH, linestyle = :dash)]])
+leg_lab = vcat([m in PHASE_INPUT ? nm * " (phase input with the deviation)" : nm for (m, nm, _, _, _) in MODELS], ["mean-cycle template (A, B)"])
+Legend(fig[2, 1:3], leg_el, leg_lab; framevisible = false, labelsize = 6.5, orientation = :horizontal, nbanks = 3, colgap = 10, rowgap = 0)
+rowgap!(fig.layout, 6)
 save_paper(fig, "Figure_06")
 
-bin(v, a, b) = mean(v[round(Int, a * SPS)+1:round(Int, b * SPS)])
-for o in R
-    S = o.skill
-    # remaining variance in the first stride and strides 1–3 (1 − skill); shares of the attainable variance reduction
-    @printf("κ %.1f %3d %-6s | floor (RRV) %.2f %.2f | DMD RRV %.2f %.2f (%.0f%%, %.0f%% of the attainable reduction) | ESN RRV %.2f %.2f (%.0f%%, %.0f%%)\n",
-            o.κ, o.NTR, o.obs, 1 - bin(S["ceiling"], 0, 1), 1 - bin(S["ceiling"], 1, 3), 1 - bin(S["DMD 0"], 0, 1), 1 - bin(S["DMD 0"], 1, 3),
-            100bin(S["DMD 0"], 0, 1) / bin(S["ceiling"], 0, 1), 100bin(S["DMD 0"], 1, 3) / bin(S["ceiling"], 1, 3),
-            1 - bin(esn_med(o), 0, 1), 1 - bin(esn_med(o), 1, 3), 100bin(esn_med(o), 0, 1) / bin(S["ceiling"], 0, 1),
-            100bin(esn_med(o), 1, 3) / bin(S["ceiling"], 1, 3))
+for (m, nm, _, _, _) in MODELS, n in (16, 32, 150)
+    v = vals(m, n, 0.0, 2); isempty(v) && continue
+    @printf("%-8s %3d strides: remaining variance 1/8 stride %.2f [%.2f–%.2f], 1/4 %.2f (%d trials)\n", m, n, median(v), q(v, 0.25), q(v, 0.75), median(vals(m, n, 0.0, 4)), length(v))
 end
+KEY = Dict(:ltp => "FIP", :lpv => "LPV", :dmd => "DMD", :esn => "ESN", :lstm => "LSTM", :node => "NODE", :ssm => "SSM")
+scorecard!("R1run", Dict(KEY[m] => @sprintf("%.2f", median(vals(m, 150, 0.0, 2))) for (m, _, _, _, _) in MODELS if haskey(KEY, m) && !isempty(vals(m, 150, 0.0, 2))))

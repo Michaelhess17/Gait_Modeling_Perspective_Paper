@@ -1,255 +1,130 @@
 #!/usr/bin/env julia
-# Figure_05.jl — Whole-system models run freely: who keeps the cycle (R1, R2) (manuscript: @fig-selfdriving). Run: julia --project=. scripts/figures/Figure_05.jl
-# Self-driving mode: what each model does when it has to run on its own
-#
-# (A) Phase portraits in the realistic regime (12 training cycles, 1 %
-#     measurement noise, process noise on the simulated systems). Grey: the
-#     held-out data; colour: free runs from the end of the training window,
-#     every seed (ESN, NODE), polynomial degree (SSMLearnPy) or rank (DMD)
-#     overlaid. Axes are framed on the data; runs that leave the frame are cut.
-#     The label gives the 30-cycle outcome counts.
-# (B) Outcome after 30 free-running cycles, pooled over all systems and both
-#     regimes: ok / decays with the right rhythm / collapse / blow-up / wrong
-#     rhythm (definitions in self_driving_benchmark.jl).
-# (C) Free-run error over the first cycle, per system, against the
-#     phase-aligned mean-cycle template.
-#
-# DMD and ESN use hyperparameters chosen on the training data only
-# (dmd_tuning.jl, esn_tuning.jl: fit on all but the last two training cycles,
-# pick by free-run error on those cycles). The neural ODE uses one fixed recipe
-# (too costly to tune per cell); SSMLearnPy uses the configuration tuned on gait.
-#
-# Inputs: cache/selfdrive/*.jls (self_driving_benchmark.jl), dmdtuned_*.jls,
-#         esntuned_*.jls, ssm_*.npz (ssm_self_driving.py)
+# Figure_05.jl — Forecasting the predictable short-time response (SLIP, with ceiling) (manuscript: @fig-predictable). Run: julia --project=. scripts/figures/Figure_05.jl
+# Figure: how much of the predictable short-time response do fitted models forecast? (R1)
+# Data: scripts/slip_predictable_truth.jl (SLIP.jl env) → scripts/predictable_response.jl → cache/predictable/slip_results.jls
+#   (A) one test start (SLIP with feedback, full state, 60 training steps): height deviation from the mean step
+#   (B–D) remaining variance relative to the mean-cycle forecast (MSE / MSE of the mean cycle) over the horizon, 60
+#         training steps: floor (noise-free continuation of the true state), every model class (median over seeds:
+#         ESN 4, LSTM 2, neural ODE 2), persistence; linear models solid, nonlinear dashed (predictable_more.jl adds
+#         Fourier in phase, neural ODE, LSTM and SSMLearnPy → cache/predictable/more_*.jls)
+#   (E)   share of the attainable variance reduction, (1 − model) / (1 − floor), over the first stride and strides 1–3,
+#         for every condition; filled 60 training steps, open 300
 
 using Pkg; Pkg.activate(dirname(dirname(@__DIR__)); io = devnull)
 include(joinpath(@__DIR__, "..", "paper_style.jl"))
-using Serialization, Statistics, NPZ, Random
+using Serialization, Statistics, Printf
 
-const DIR = joinpath(dirname(dirname(@__DIR__)), "cache", "selfdrive")
-const SYSTEMS = [("fhn", "FitzHugh–Nagumo", (1, 2), ("v", "w")),
-                 ("cfhn", "coupled FHN", (1, 2), ("v₁", "w₁")),
-                 ("vdp2", "coupled Van der Pol", (1, 2), ("x_A", "ẋ_A")),
-                 ("slip", "SLIP walking", (1, 3), ("CoM height", "vertical vel.")),
-                 ("gait91", "human gait (AB)", (1, 2), ("hip", "knee"))]
-const MODELS = [("ESN", CAT[2]), ("NODE", CAT[3]), ("SSM", CAT[4]), ("DMD", CAT[1])]
-const MODEL_LABEL = Dict("ESN" => "echo state network", "NODE" => "neural ODE",
-                         "SSM" => "SSMLearnPy", "DMD" => "Hankel-DMD (linear)")
-const FATES = ["ok", "decays", "wrong", "collapse", "blow-up"]
-const FATE_COL = Dict("ok" => colorant"#3d7a5c", "decays" => colorant"#9cc7ae",
-                      "wrong" => colorant"#d9b45a", "collapse" => colorant"#a9a8a4",
-                      "blow-up" => colorant"#b5523b")
-
-"Tuned DMD (one deterministic run) and tuned ESN (8 seeds) rows, if available."
-function tuned_rows(sys, regime)
-    rows = NamedTuple[]
-    f = joinpath(DIR, "dmdtuned_$(sys)_$(regime).jls")
-    if isfile(f)
-        o = deserialize(f); c = o.chosen
-        push!(rows, (; model = "DMD", variant = "τ=$(c.τ) r=$(c.r) $(c.variant)", c.e1, c.fate,
-                       Fc = Float64.(o.Fc)))
-    end
-    f = joinpath(DIR, "esntuned_$(sys)_$(regime).jls")
-    if isfile(f)
-        o = deserialize(f)
-        append!(rows, [(; model = "ESN", variant = "seed $(r.seed)", r.e1, r.fate,
-                          Fc = Float64.(r.Fc)) for r in o.rows])
-    end
-    return rows
+const ROOT = dirname(dirname(@__DIR__))
+R = deserialize(joinpath(ROOT, "cache", "predictable", "slip_results.jls"))
+get(κ, n, obs) = only(filter(o -> o.κ == κ && o.NTR == n && o.obs == obs, R))
+MORE = [deserialize(f) for f in (joinpath(ROOT, "cache", "predictable", "more_$(m).jls") for m in ("fip", "node", "lstm", "ssm")) if isfile(f)]
+getm(κ, n, obs) = [only(filter(o -> o.κ == κ && o.NTR == n && o.obs == obs, M)) for M in MORE]
+const C_LTP = colorant"#1a4f99"
+# model, label, colour, line style (linear solid, nonlinear dashed; colours as Figure 7)
+SLIPMODELS = [("FIP", "Fourier in phase", C_LTP, :solid, :diamond), ("DMD", "Hankel-DMD", CAT[1], :solid, :circle),
+              ("ESN", "ESN", CAT[2], :dash, :utriangle), ("LSTM", "LSTM", CAT[5], :dash, :dtriangle),
+              ("NODE", "neural ODE", CAT[3], :dash, :hexagon), ("SSM", "SSMLearnPy", CAT[4], :dash, :star5)]
+"Remaining variance over the horizon for model `base` (median over its seeds); nothing if not run."
+function rrv(κ, n, obs, base)
+    objs = vcat([get(κ, n, obs)], getm(κ, n, obs))
+    v = [1 .- o.skill[nm] for o in objs for nm in o.names if startswith(nm, base * " ")]
+    isempty(v) ? nothing : vec(median(reduce(hcat, v); dims = 2))
 end
+floorv(κ, n, obs) = 1 .- get(κ, n, obs).skill["ceiling"]
+plabel!(pos, L) = Label(pos[1, 1, TopLeft()], L; fontsize = 10, font = :bold, padding = (0, 6, 2, 0), halign = :right)
+C_DMD = CAT[1]; C_ESN = CAT[2]
+const SPS = 100                                     # samples per stride
+binned(v; w = 10) = [mean(v[i:i+w-1]) for i in 1:w:length(v)-w+1]
+hx(v; w = 10) = ((0:length(binned(v; w))-1) .+ 0.5) .* w ./ SPS
+esn_med(o; y = false) = vec(median(reduce(hcat, [(y ? o.skilly : o.skill)["ESN $sd"] for sd in 1:4]); dims = 2))
 
-"Rows for one (system, regime): DMD/ESN/template + NODE from .jls, SSM from .npz."
-function load_cell(sys, regime)
-    rows = NamedTuple[]; Yte = nothing; Ytr = nothing; P = NaN
-    for tag in ("dmd-esn-template", "node")
-        f = joinpath(DIR, "$(sys)_$(regime)_$(tag).jls")
-        isfile(f) || continue
-        o = deserialize(f)
-        append!(rows, [(; r.model, r.variant, r.e1, r.fate, Fc = Float64.(r.Fc)) for r in o.rows])
-        Yte = o.Yte; Ytr = o.Ytr; P = o.P
+fig = Figure(size = (COL2, 150MM))
+gA = fig[1, 1] = GridLayout(); gB = fig[1, 2] = GridLayout()
+gC = fig[2, 1] = GridLayout(); gD = fig[2, 2] = GridLayout(); gE = fig[3, 1:2] = GridLayout()
+colgap!(fig.layout, 16); rowgap!(fig.layout, 10)
+
+# ── A: one forecast ─────────────────────────────────────────────────────────
+o = get(0.1, 60, :full); ex = o.examples[2]
+th = ((1:size(ex.hist, 1)) .- size(ex.hist, 1)) ./ SPS; tf = (1:size(ex.fut, 1)) ./ SPS
+mfut = ex.fc["mean cycle"]
+dev(F, M) = F[:, 1] .- M[:, 1]                       # height deviation from the mean step (z units)
+axA = Axis(gA[1, 1]; xlabel = "Strides from the forecast start", ylabel = "Height deviation\nfrom the mean step (SD)",
+           title = "One forecast: SLIP with feedback")
+refline!(axA, 0.0; linestyle = :solid)
+vlo = [h for h in 1:size(ex.fut, 1) if mod1(ex.j + h, 50) == 1] ./ SPS
+for v in vlo; vlines!(axA, v; color = (C_REF, 0.35), linewidth = 0.6, linestyle = :dot); end
+lines!(axA, th, dev(ex.hist, ex.mstep_hist); color = (C_REF, 0.9), linewidth = 0.9, label = "observed (noisy)")
+lines!(axA, tf, dev(ex.fut, mfut); color = C_TRUTH, linewidth = 1.4, label = "what happened")
+lines!(axA, tf, dev(Float64.(ex.fc["ceiling"]), mfut); color = C_TRUTH, linestyle = :dash, linewidth = 1.1,
+       label = "predictable part (floor)")
+for sd in 1:4
+    lines!(axA, tf, dev(Float64.(ex.fc["ESN $sd"]), mfut); color = (C_ESN, 0.6), linewidth = 0.8,
+           label = sd == 1 ? "ESN, 4 seeds" : nothing)
+end
+lines!(axA, tf, dev(Float64.(ex.fc["DMD 0"]), mfut); color = C_DMD, linewidth = 1.2, label = "Hankel-DMD")
+axislegend(axA; position = (:right, :top), labelsize = 6.5, patchsize = (12, 5), unique = true)
+yl = maximum(abs, dev(ex.hist, ex.mstep_hist))
+text!(axA, vlo[1], -yl; text = "dotted: next disturbances", fontsize = 6, color = C_REF,
+      align = (:left, :bottom), offset = (2, 0))
+xlims!(axA, -2, 3); ylims!(axA, -1.1yl, 1.75yl)
+plabel!(gA[1, 1], "A")
+
+# ── B–D: relative remaining variance over the horizon (1 − skill; skill = 1 − MSE / MSE of the mean cycle) ──
+function skillpanel!(g, κ, obs, title)
+    ax = Axis(g[1, 1]; xlabel = "Forecast horizon (strides)", ylabel = "Remaining variance\n(relative to the mean cycle)",
+              title, limits = (0, 3, -0.02, 1.6), yticks = [0, 0.5, 1, 1.5])
+    vspan!(ax, 0, 1; color = C_SHADE)
+    refline!(ax, 1.0; linestyle = :solid)
+    o = get(κ, 60, obs); S = Dict(k => 1 .- v for (k, v) in o.skill)
+    lines!(ax, hx(S["persistence"]), binned(S["persistence"]); color = C_REF, linestyle = :dot, linewidth = 1.0, label = "persistence (last step)")
+    lines!(ax, hx(S["ceiling"]), binned(S["ceiling"]); color = C_TRUTH, linewidth = 1.8, label = "floor: no future disturbances")
+    for (base, lab, col, ls, _) in SLIPMODELS
+        v = rrv(κ, 60, obs, base); v === nothing && continue
+        lines!(ax, hx(v), binned(v); color = col, linestyle = ls, linewidth = 1.2, label = lab)
     end
-    tr = tuned_rows(sys, regime)            # tuned DMD / ESN replace the defaults
-    for m in unique([x.model for x in tr])
-        filter!(x -> x.model != m, rows)
-    end
-    append!(rows, tr)
-    f = joinpath(DIR, "ssm_$(sys)_$(regime).npz")
-    if isfile(f)
-        S = npzread(f)
-        for k in eachindex(S["degrees"])
-            push!(rows, (; model = "SSM", variant = "deg $(S["degrees"][k])", e1 = S["e1"][k],
-                           fate = FATES[S["fate_code"][k] + 1], Fc = S["fc"][k, :, :]))
+    ax
+end
+axB = skillpanel!(gB, 0.1, :full, "SLIP with feedback, full CoM state")
+plabel!(gB[1, 1], "B")
+skillpanel!(gC, 0.0, :full, "SLIP open loop, full CoM state"); plabel!(gC[1, 1], "C")
+skillpanel!(gD, 0.1, :height, "SLIP with feedback, height only"); plabel!(gD[1, 1], "D")
+# ── E: share of the attainable variance reduction ───────────────────────────
+bin(v, a, b) = mean(v[round(Int, a * SPS)+1:round(Int, b * SPS)])
+share(κ, n, obs, base, a, b) = (v = rrv(κ, n, obs, base); v === nothing ? NaN : (1 - bin(v, a, b)) / (1 - bin(floorv(κ, n, obs), a, b)))
+CONDS = [(0.1, :full, "feedback,\nfull state"), (0.0, :full, "open loop,\nfull state"), (0.1, :height, "feedback,\nheight only")]
+WINS = [(0, 1, "first stride"), (1, 3, "strides 1–3")]
+axE = Axis(gE[1, 1]; ylabel = "share of the attainable\nvariance reduction", title = "E   How much of the predictable response each model forecasts",
+           titlefont = :bold, xticks = (1:6, ["$(c[3])\n$(w[3])" for w in WINS for c in CONDS]), xticklabelsize = 6.5,
+           limits = (0.4, 6.6, -0.6, 1.08), yticks = ([-0.5, 0, 0.5, 1], ["−50%", "0", "50%", "100%"]))
+hlines!(axE, 1; color = C_TRUTH, linewidth = 0.8); hlines!(axE, 0; color = C_REF, linewidth = 0.6)
+for (g, (w, c)) in enumerate([(w, c) for w in WINS for c in CONDS])
+    for (k, (base, _, col, _, mk)) in enumerate(SLIPMODELS)
+        x = g + (k - 3.5) * 0.12
+        for (n, filled) in ((60, true), (300, false))
+            v = share(c[1], n, c[2], base, w[1], w[2]); isfinite(v) || continue
+            scatter!(axE, [x], [max(v, -0.58)]; color = filled ? col : :white, strokecolor = col, strokewidth = filled ? 0 : 0.9,
+                     marker = mk, markersize = 6)
         end
     end
-    return rows, Ytr, Yte, P
 end
-
-fig = Figure(size = (COL2, 205MM))
-gA = fig[1, 1] = GridLayout()
-gB = fig[2, 1] = GridLayout()
-
-# ── (A) phase-portrait grid ──────────────────────────────────────────────────
-for (c, (sys, title, (i, j), (li, lj))) in enumerate(SYSTEMS)
-    rows, Ytr, Yte, P = load_cell(sys, "realistic")
-    Yte === nothing && continue
-    n8 = min(size(Yte, 1), round(Int, 8P))
-    lims = framed_limits(vcat(Ytr[:, i], Yte[1:n8, i]), vcat(Ytr[:, j], Yte[1:n8, j]); pad = 0.25)
-    for (r, (m, col)) in enumerate(MODELS)
-        ax = Axis(gA[r, c]; xticklabelsvisible = r == length(MODELS),
-                  yticklabelsvisible = c == 1, xlabel = r == length(MODELS) ? li : "",
-                  ylabel = c == 1 ? lj : "", title = r == 1 ? title : "",
-                  titlealign = :center, xticks = LinearTicks(3), yticks = LinearTicks(3))
-        lines!(ax, Yte[1:n8, i], Yte[1:n8, j]; color = (C_REF, 0.5), linewidth = 1.0)
-        mr = [x for x in rows if x.model == m]
-        for x in mr
-            xs, ys, _ = clip_to_view(x.Fc[:, i], x.Fc[:, j], lims)
-            lines!(ax, xs, ys; color = (col, 0.75), linewidth = 0.8)
-        end
-        limits!(ax, lims...)
-        if !isempty(mr)
-            counts = [count(x -> x.fate == f, mr) for f in FATES]
-            parts = ["$(n) $(f)" for (n, f) in zip(counts, FATES) if n > 0]
-            txt = length(parts) > 2 ? join(parts[1:2], ", ") * ",\n" * join(parts[3:end], ", ") : join(parts, ", ")
-            text!(ax, 0.03, 0.97; space = :relative, align = (:left, :top), fontsize = 6,
-                  text = txt, color = C_TRUTH)
-        end
-        c == length(SYSTEMS) && Label(gA[r, c + 1], MODEL_LABEL[m]; rotation = -π / 2,
-                                      fontsize = 7, tellheight = false)
-    end
-end
-colgap!(gA, 4); rowgap!(gA, 4)
-Label(gA[0, 1:length(SYSTEMS)], "Free runs from the end of a 12-cycle training window " *
-      "(grey: held-out data)"; fontsize = 8, halign = :left)
-Label(gA[1, 1, TopLeft()], "A"; fontsize = 10, font = :bold, padding = (0, 6, 2, 0))
-
-# ── (B) pooled outcomes ──────────────────────────────────────────────────────
-allrows = NamedTuple[]
-for f in readdir(DIR)
-    m = match(r"^(.+)_(realistic|long)_(dmd-esn-template|node)\.jls$", f)
-    m === nothing && continue
-    o = deserialize(joinpath(DIR, f))
-    tr = tuned_rows(m[1], m[2]); tuned = unique([x.model for x in tr])
-    append!(allrows, [(; r.model, r.fate, sys = m[1], reg = m[2], r.e1) for r in o.rows if !(r.model in tuned)])
-    m[3] == "dmd-esn-template" &&
-        append!(allrows, [(; x.model, x.fate, sys = m[1], reg = m[2], x.e1) for x in tr])
-end
-for f in readdir(DIR)
-    m = match(r"^ssm_(.+)_(realistic|long)\.npz$", f)
-    m === nothing && continue
-    S = npzread(joinpath(DIR, f))
-    append!(allrows, [(; model = "SSM", fate = FATES[S["fate_code"][k] + 1], sys = m[1], reg = m[2],
-                         e1 = S["e1"][k]) for k in eachindex(S["fate_code"])])
-end
-
-# unconstrained Hankel-DMD, tuned on the training data by the same criterion (stabilization_benchmark.jl)
-fsb = joinpath(DIR, "stabilization_benchmark.jls")
-if isfile(fsb)
-    append!(allrows, [(; model = "DMD0", fate = o.retuned.fate, sys = o.system, reg = o.regime, e1 = o.retuned.e1)
-                      for o in deserialize(fsb)])
-end
-MODELS_B = vcat(MODELS, isfile(fsb) ? [("DMD0", CAT[1])] : Tuple{String, Any}[])
-LABEL_B = Dict("ESN" => "ESN", "NODE" => "neural ODE", "SSM" => "SSMLearnPy", "DMD" => "DMD, as tuned", "DMD0" => "DMD, no constraint")
-axB = Axis(gB[1, 1]; title = "Outcome after 30 free-running cycles",
-           xlabel = "Share of runs", yticks = (1:length(MODELS_B), [LABEL_B[m] for (m, _) in MODELS_B]),
-           yreversed = true, limits = (0, 1, 0.4, length(MODELS_B) + 0.6))
-for (r, (m, _)) in enumerate(MODELS_B)
-    mr = [x for x in allrows if x.model == m]
-    isempty(mr) && continue
-    left = 0.0
-    for f in FATES
-        share = count(x -> x.fate == f, mr) / length(mr)
-        share > 0 || continue
-        barplot!(axB, [r], [share]; offset = left, direction = :x, color = FATE_COL[f],
-                 width = 0.7, gap = 0, strokecolor = :white, strokewidth = 1)
-        share > 0.08 && text!(axB, left + share / 2, r; text = "$(round(Int, 100share))%",
-                              align = (:center, :center), fontsize = 6, color = :white)
-        left += share
-    end
-    text!(axB, 1.01, r; text = "n = $(length(mr))", align = (:left, :center), fontsize = 6)
-end
-Legend(gB[2, 1], [PolyElement(color = FATE_COL[f]) for f in FATES],
-       ["ok", "decays (right rhythm)", "wrong rhythm", "collapse", "blow-up"];
-       orientation = :horizontal, tellwidth = false, nbanks = 3)
-Label(gB[1, 1, TopLeft()], "B"; fontsize = 10, font = :bold, padding = (0, 6, 2, 0))
-
-# ── (C) first-cycle error per system ─────────────────────────────────────────
-sysorder = ["fhn", "cfhn", "vdp2", "slip", "gait91", "gait243", "gait231", "gait63", "gait267"]
-axC = Axis(gB[1, 2]; title = "Error over the first free-running cycle",
-           xticks = (1:length(sysorder), ["FHN", "cFHN", "VdP", "SLIP", "gait 1", "2", "3", "4", "5"]),
-           ylabel = "Error (SD units)", yscale = log10, xticklabelrotation = π / 3, xticklabelsize = 6.5)
-for (k, s) in enumerate(sysorder)
-    tpl = [x.e1 for x in allrows if x.sys == s && x.model == "template"]
-    isempty(tpl) || lines!(axC, [k - 0.4, k + 0.4], fill(median(tpl), 2); color = C_TRUTH,
-                           linewidth = 1.2)
-    for (q, (m, col)) in enumerate(MODELS)
-        v = [x.e1 for x in allrows if x.sys == s && x.model == m]
-        isempty(v) && continue
-        v = clamp.(v, 1e-2, 10.0)
-        scatter!(axC, fill(k - 0.3 + 0.2(q - 1), length(v)), v; color = (col, 0.8), markersize = 3.5)
-    end
-end
-refline!(axC, 1.0)
-ylims!(axC, 1e-2, 12)
-text!(axC, 0.6, 9; text = "points at 10 = diverged", fontsize = 6, color = C_REF, align = (:left, :top))
-Legend(gB[2, 2], vcat([MarkerElement(color = c, marker = :circle, markersize = 5) for (_, c) in MODELS],
-                      [LineElement(color = C_TRUTH, linewidth = 1.2)]),
-       vcat([m == "DMD" ? "DMD" : m for (m, _) in MODELS], ["mean-cycle template"]);
-       orientation = :horizontal, tellwidth = false, nbanks = 3)
-Label(gB[1, 2, TopLeft()], "C"; fontsize = 10, font = :bold, padding = (0, 6, 2, 0))
-# ── (D) R2: time within ε of the true cycle ───────────────────────────────────
-ftube = joinpath(DIR, "r2_tube.jls")
-if isfile(ftube)
-    tube = deserialize(ftube); EPS_D = 0.5; tg = 0:0.1:8
-    surv(recs) = [count(r -> r.exits[EPS_D] > t, recs) / length(recs) for t in tg]
-    axD = Axis(gB[1, 3]; title = "Time within ε of the true cycle", xlabel = "Free-running cycles",
-               ylabel = "Share of runs within ε", limits = (0, 8, 0, 1.03))
-    rng = MersenneTwister(3)
-    for (m, col, ls) in (("ESN", CAT[2], :solid), ("NODE", CAT[3], :solid), ("SSM", CAT[4], :solid),
-                         ("DMD0", CAT[1], :dash), ("DMD", CAT[1], :solid))
-        cellsm = [[r for r in o.recs if r.model == m] for o in tube]; cellsm = filter(!isempty, cellsm)
-        boot = reduce(hcat, [surv(reduce(vcat, cellsm[rand(rng, 1:length(cellsm), length(cellsm))])) for _ in 1:1000])
-        lo = [quantile(boot[i, :], 0.025) for i in eachindex(tg)]; hi = [quantile(boot[i, :], 0.975) for i in eachindex(tg)]
-        ls == :solid && band!(axD, collect(tg), lo, hi; color = (col, 0.15))
-        lines!(axD, collect(tg), surv(reduce(vcat, cellsm)); color = col, linestyle = ls, linewidth = 1.4)
-    end
-    text!(axD, 0.2, 0.05; text = "ε = $(EPS_D) cycle SD; held-out data\nstay within $(round(maximum(o.data_max for o in tube), digits = 2))",
-          fontsize = 6, color = C_REF, align = (:left, :bottom))
-    Legend(gB[2, 3], [LineElement(color = CAT[1], linestyle = :solid), LineElement(color = CAT[1], linestyle = :dash)],
-           ["DMD as tuned", "DMD, no constraint"]; orientation = :horizontal, tellwidth = false, nbanks = 2)
-    Label(gB[1, 3, TopLeft()], "D"; fontsize = 10, font = :bold, padding = (0, 6, 2, 0))
-end
-colsize!(gB, 1, Relative(0.34)); colsize!(gB, 2, Relative(0.35)); colgap!(gB, 18)
-
-rowsize!(fig.layout, 1, Relative(0.70))
+gL = gE[1, 2] = GridLayout()
+Legend(gL[1, 1], vcat([LineElement(color = C_TRUTH, linewidth = 1.8), LineElement(color = C_REF, linestyle = :dot)],
+                      [[LineElement(color = col, linestyle = ls), MarkerElement(color = col, marker = mk, markersize = 5)] for (_, _, col, ls, mk) in SLIPMODELS]),
+       vcat(["floor: no future disturbances", "persistence (last step)"], [lab for (_, lab, _, _, _) in SLIPMODELS]);
+       framevisible = false, labelsize = 6.5, patchsize = (14, 5), rowgap = 0, tellheight = false)
+Label(gL[2, 1], "B–D: 60 training steps\nE: filled 60, open 300"; fontsize = 6.5, color = C_REF, tellwidth = false)
+rowgap!(gL, 2)
+colsize!(gE, 2, Fixed(120))
+rowsize!(fig.layout, 3, Relative(0.3))
 save_paper(fig, "Figure_05")
 
-println("\nOutcome counts (all systems, both regimes):")
-for (m, _) in vcat(MODELS_B, [("template", nothing)])
-    mr = [x for x in allrows if x.model == m]
-    isempty(mr) && continue
-    println(rpad(m, 9), " n=", lpad(length(mr), 3), "  ",
-            join(["$(f) $(count(x -> x.fate == f, mr))" for f in FATES], "  "))
-end
-
-# Panel C as numbers: median first-cycle free-run error per cell, and the relative remaining variance against the
-# mean-cycle reference forecast, (model error / template error)² = MSE / MSE of the mean cycle (1 = no better than the
-# mean cycle, 0 = exact; e1 is an RMS error over the first cycle).
-fin(v) = filter(isfinite, v)
-rrv_range = Dict{Tuple{String, String}, Vector{Float64}}()
-for reg in ("long", "realistic")
-    println("\nFirst-cycle forecast error, $reg regime (median over seeds/settings; relative remaining variance):")
-    for s in sort(unique(x.sys for x in allrows if x.reg == reg))
-        t = median(fin([x.e1 for x in allrows if x.sys == s && x.reg == reg && x.model == "template"]))
-        cells = map(("DMD", "ESN", "NODE", "SSM")) do m
-            v = fin([x.e1 for x in allrows if x.sys == s && x.reg == reg && x.model == m])
-            isempty(v) && return "$(m) —"
-            r = (median(v) / t)^2; push!(get!(rrv_range, (m, reg), Float64[]), r)
-            @sprintf("%s %.3f (%.3g)", m, median(v), r)
-        end
-        println(rpad(s, 8), @sprintf(" template %.3f | ", t), join(cells, "  "))
+for (κ, obs, _) in CONDS, n in (60, 300)
+    @printf("κ %.1f %3d %-6s | floor %.2f / %.2f |", κ, n, obs, bin(floorv(κ, n, obs), 0, 1), bin(floorv(κ, n, obs), 1, 3))
+    for (base, _, _, _, _) in SLIPMODELS
+        v = rrv(κ, n, obs, base); v === nothing && continue
+        @printf(" %s %.2f / %.2f (%.0f%%, %.0f%%) |", base, bin(v, 0, 1), bin(v, 1, 3), 100share(κ, n, obs, base, 0, 1), 100share(κ, n, obs, base, 1, 3))
     end
+    println()
 end
-println("\nRelative remaining variance, first cycle, range over cells (scorecard R1):")
-for m in ("NODE", "ESN", "SSM", "DMD"), reg in ("long", "realistic")
-    v = get(rrv_range, (m, reg), Float64[]); isempty(v) || @printf("%-5s %-9s %.3g to %.3g\n", m, reg, extrema(v)...)
-end
+scorecard!("R1slip", Dict(base => replace(@sprintf("%.0f%%", 100share(0.1, 60, :full, base, 1, 3)), "-" => "−")
+                          for (base, _, _, _, _) in SLIPMODELS if rrv(0.1, 60, :full, base) !== nothing))

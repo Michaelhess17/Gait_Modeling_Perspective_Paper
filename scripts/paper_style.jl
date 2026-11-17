@@ -22,6 +22,7 @@
 
 using CairoMakie
 using Printf
+using Serialization
 
 const MM   = 72 / 25.4
 const COL1 = 85MM
@@ -114,4 +115,15 @@ function save_paper(fig, name; dir = joinpath(dirname(@__DIR__), "figures"))
     end
     save(joinpath(dir, "$name.png"), fig; px_per_unit = 300 / 72)
     @info "saved" name dir
+end
+
+"""
+    scorecard!(column, cells)
+
+Record a figure's headline number for each model class (`cells`: model key => text; keys FIP, LPV, DMD, ESN, LSTM,
+NODE, SSM) as one column of the comparison table, which `scripts/scorecard.jl` assembles into `_scorecard.md`.
+"""
+function scorecard!(column::AbstractString, cells::AbstractDict)
+    dir = joinpath(dirname(@__DIR__), "cache", "scorecard"); mkpath(dir)
+    serialize(joinpath(dir, "$column.jls"), Dict{String, String}(String(k) => String(v) for (k, v) in cells))
 end

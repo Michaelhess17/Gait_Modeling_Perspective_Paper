@@ -1,8 +1,9 @@
 #!/usr/bin/env julia
 # R2: how long does each free run stay within ε of the true cycle? (benchmark of Fig2_self_driving.jl)
 #
-# For every cached free run (8 cycles from the end of the training window; Hankel-DMD as tuned and retuned without a
-# spectral constraint, ESN 8 seeds, neural ODE 4 seeds, SSMLearnPy 2 degrees, mean-cycle template), the distance of each
+# For every cached free run (8 cycles from the end of the training window; Fourier in phase (benchmark_more.jl), Hankel-DMD
+# as tuned and retuned without a spectral constraint, ESN 8 seeds, LSTM 2 seeds (benchmark_more.jl), neural ODE 4 seeds,
+# SSMLearnPy 2 degrees, mean-cycle template), the distance of each
 # forecast sample to a reference set, RMS over channels in the cell's z-scored units (cycle-SD units):
 #   simulated ODEs   the noise-free limit cycle (densely sampled), normalised exactly as the cell's data
 #   SLIP             the settled cycle (last 3 cycles of the noise-free trajectory)
@@ -65,6 +66,10 @@ function runs(system, regime, P, Ytr)
         S = npzread(f)
         append!(out, [(; model = "SSM", run = "deg $(S["degrees"][k])", Fc = Float64.(S["fc"][k, :, :])) for k in axes(S["fc"], 1)])
     end
+    for tag in ("fip", "lstm")                             # benchmark_more.jl
+        f = joinpath(DIRS, "$(tag)_$(system)_$(regime).jls")
+        isfile(f) && append!(out, [(; r.model, run = r.variant, Fc = Float64.(r.Fc)) for r in deserialize(f).rows])
+    end
     f = joinpath(DIRS, "$(system)_$(regime)_dmd-esn-template.jls")
     isfile(f) && append!(out, [(; model = "template", run = "", Fc = Float64.(r.Fc)) for r in deserialize(f).rows if r.model == "template"])
     out
@@ -87,7 +92,7 @@ serialize(joinpath(DIRS, "r2_tube.jls"), res)
 
 for o in sort(res; by = o -> (o.system, o.regime))
     @printf("%-9s %-9s %-17s data q95 %.2f max %.2f | ", o.system, o.regime, o.kind, o.data_q95, o.data_max)
-    for m in ("DMD", "DMD0", "ESN", "NODE", "SSM", "template")
+    for m in ("FIP", "DMD", "DMD0", "ESN", "LSTM", "NODE", "SSM", "template")
         rr = [r for r in o.recs if r.model == m]; isempty(rr) && continue
         @printf("%s %d/%d ", m, count(r -> isinf(r.exits[0.5]), rr), length(rr))
     end
@@ -96,8 +101,8 @@ end
 println("\nShare of runs within ε of the reference for all 8 cycles, pooled over cells:")
 for ε in EPS
     @printf("ε = %.2f: ", ε)
-    for m in ("DMD", "DMD0", "ESN", "NODE", "SSM", "template")
-        rr = [r for o in res for r in o.recs if r.model == m]
+    for m in ("FIP", "DMD", "DMD0", "ESN", "LSTM", "NODE", "SSM", "template")
+        rr = [r for o in res for r in o.recs if r.model == m]; isempty(rr) && continue
         @printf("%s %3.0f%% (n=%d, median exit %s)  ", m, 100 * count(r -> isinf(r.exits[ε]), rr) / length(rr), length(rr),
                 (e = median([r.exits[ε] for r in rr]); isinf(e) ? ">8" : @sprintf("%.1f", e)))
     end

@@ -172,22 +172,24 @@ function run_config(κ, NTR, obs, cont)
        μ, σ, models = [(m[1], m[2]) for m in models], SEw, NW = [NW[s] for s in 11:20], lstm_secs)
 end
 
-cont = deserialize(joinpath(ROOT, "cache", "predictable", "slip_truth_continuations.jls"))
-configs = [(κ, NTR, obs) for κ in (0.1, 0.0), NTR in (60, 300), obs in (:full, :height)] |> vec
-out = Vector{Any}(undef, length(configs))
-Threads.@threads for i in eachindex(configs)
-    out[i] = run_config(configs[i]..., cont)
-end
-serialize(joinpath(ROOT, "cache", "predictable", "slip_results.jls"), out)
+if abspath(PROGRAM_FILE) == (@__FILE__)
+    cont = deserialize(joinpath(ROOT, "cache", "predictable", "slip_truth_continuations.jls"))
+    configs = [(κ, NTR, obs) for κ in (0.1, 0.0), NTR in (60, 300), obs in (:full, :height)] |> vec
+    out = Vector{Any}(undef, length(configs))
+    Threads.@threads for i in eachindex(configs)
+        out[i] = run_config(configs[i]..., cont)
+    end
+    serialize(joinpath(ROOT, "cache", "predictable", "slip_results.jls"), out)
 
-bin(v, a, b) = mean(v[round(Int, a * 2NPH)+1:round(Int, b * 2NPH)])
-for o in out
-    @printf("\nκ %.1f  %3d training steps  %-6s  starts %d | DMD %s | ESN %s\n", o.κ, o.NTR, o.obs, o.nstart,
-            string(o.gd), string(o.ge))
-    @printf("  %-14s %8s %8s %8s %8s   (skill vs mean cycle over horizon bins, strides)\n", "", "0–0.5", "0.5–1", "1–2", "2–3")
-    for nm in o.names
-        sk = o.skill[nm]
-        @printf("  %-14s %8.2f %8.2f %8.2f %8.2f  diverged %d\n", nm, bin(sk, 0, 0.5), bin(sk, 0.5, 1), bin(sk, 1, 2),
-                bin(sk, 2, 3), o.diverged[nm])
+    bin(v, a, b) = mean(v[round(Int, a * 2NPH)+1:round(Int, b * 2NPH)])
+    for o in out
+        @printf("\nκ %.1f  %3d training steps  %-6s  starts %d | DMD %s | ESN %s\n", o.κ, o.NTR, o.obs, o.nstart,
+                string(o.gd), string(o.ge))
+        @printf("  %-14s %8s %8s %8s %8s   (skill vs mean cycle over horizon bins, strides)\n", "", "0–0.5", "0.5–1", "1–2", "2–3")
+        for nm in o.names
+            sk = o.skill[nm]
+            @printf("  %-14s %8.2f %8.2f %8.2f %8.2f  diverged %d\n", nm, bin(sk, 0, 0.5), bin(sk, 0.5, 1), bin(sk, 1, 2),
+                    bin(sk, 2, 3), o.diverged[nm])
+        end
     end
 end

@@ -160,8 +160,8 @@ function fit_node_many(Ys, Dvs, S, d, r, ph; maxup, patience, dev, seed = 1)
 end
 
 "Fit every state setting for all trials at once; per trial keep the setting with the best validation skill."
-function fit_select(Ys, Dvs, S, ph; maxup, patience, dev)
-    fits = [fit_node_many(Ys, Dvs, S, d, r, ph; maxup, patience, dev) for (d, r) in NODE_STATES]
+function fit_select(Ys, Dvs, S, ph; maxup, patience, dev, seed = 1)
+    fits = [fit_node_many(Ys, Dvs, S, d, r, ph; maxup, patience, dev, seed) for (d, r) in NODE_STATES]
     map(eachindex(Ys)) do i
         vs = [f[i].val for f in fits]; k = argmax(vs)
         (; f = fits[k][i], vals = vs, best_updates = [f[i].best_update for f in fits])

@@ -43,3 +43,7 @@ cache/slip_ltp/recovery.jls
 site_libs/
 index.tex
 cache/maus/ssm_input/
+cache/maus/req/
+cache/predictable/ssm_io/
+cache/maus/ssm_whole_runs.npz
+cache/recovery/ssm_io/

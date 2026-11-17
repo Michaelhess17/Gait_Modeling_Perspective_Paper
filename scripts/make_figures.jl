@@ -15,4 +15,5 @@ for f in files
     println(ok ? "ok" : "FAILED", "  ", round(Int, time() - t0), " s")
     ok || push!(failed, f)
 end
+want === nothing && run(`$(Base.julia_cmd()) --project=$ROOT $(joinpath(@__DIR__, "scorecard.jl"))`)   # the comparison table
 isempty(failed) ? println("all $(length(files)) figures rebuilt") : println("failed: ", join(failed, ", "))
