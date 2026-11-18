@@ -54,18 +54,21 @@ sfloor(κ, n, obs) = 1 .- pick(PR, κ, n, obs).skill["ceiling"]
 sshare(κ, n, obs, base) = (v = srrv(κ, n, obs, base); v === nothing ? NaN : (1 - sbin(v, 1, 3)) / (1 - sbin(sfloor(κ, n, obs), 1, 3)))
 SLIPM = [("FIP", "Fourier in phase", C_LTP, :diamond), ("DMD", "Hankel-DMD", CAT[1], :circle), ("ESN", "ESN", CAT[2], :utriangle),
          ("LSTM", "LSTM", CAT[5], :dtriangle), ("NODE", "neural ODE", CAT[3], :hexagon), ("SSM", "SSMLearnPy", CAT[4], :star5)]
+const OFF_LO, OFF_HI, OFF_Y = -0.9, -0.62, -0.76
+offscale(v) = v < OFF_HI ? OFF_Y : v
 axC = Axis(fig[2, 1]; xticks = (1:length(SLIPM), [x[2] for x in SLIPM]), xticklabelrotation = π / 5, xticklabelsize = 6.5,
            ylabel = "share of the attainable\nvariance reduction, strides 1–3", title = "partial observation (SLIP with feedback)",
-           limits = (0.4, length(SLIPM) + 0.6, -0.6, 1.1), yticks = ([-0.5, 0, 0.5, 1], ["−50%", "0", "50%", "100%"]))
+           limits = (0.4, length(SLIPM) + 0.6, OFF_LO, 1.1), yticks = ([OFF_Y, -0.5, 0, 0.5, 1], ["below\n−60%", "−50%", "0", "50%", "100%"]))
+hspan!(axC, OFF_LO, OFF_HI; color = (C_REF, 0.12))                 # shares below −60% are drawn in this band
 hlines!(axC, 1; color = C_TRUTH, linewidth = 0.8); hlines!(axC, 0; color = C_REF, linewidth = 0.6)
 for (k, (base, _, col, mk)) in enumerate(SLIPM)
     f, h = sshare(0.1, 60, :full, base), sshare(0.1, 60, :height, base)
     (isfinite(f) && isfinite(h)) || continue
-    lines!(axC, [k - 0.12, k + 0.12], [f, max(h, -0.58)]; color = (col, 0.6), linewidth = 0.9)
-    scatter!(axC, [k - 0.12], [f]; color = col, marker = mk, markersize = 6)
-    scatter!(axC, [k + 0.12], [max(h, -0.58)]; color = :white, strokecolor = col, strokewidth = 0.9, marker = mk, markersize = 6)
+    lines!(axC, [k - 0.12, k + 0.12], offscale.([f, h]); color = (col, 0.6), linewidth = 0.9)
+    scatter!(axC, [k - 0.12], [offscale(f)]; color = col, marker = mk, markersize = 6)
+    scatter!(axC, [k + 0.12], [offscale(h)]; color = :white, strokecolor = col, strokewidth = 0.9, marker = mk, markersize = 6)
 end
-text!(axC, length(SLIPM) + 0.55, -0.55; text = "filled: full state; open: height only", fontsize = 6, color = C_REF, align = (:right, :bottom))
+text!(axC, length(SLIPM) + 0.55, OFF_HI + 0.03; text = "filled: full state; open: height only", fontsize = 6, color = C_REF, align = (:right, :bottom))
 panel_label!(fig[2, 1], "C")
 # D: cost
 Lc = L[0.0].R
@@ -97,7 +100,7 @@ end
 for (nm, t, _, gpu) in COST; @printf("cost %-22s %.1f s%s\n", nm, t, gpu ? " (GPU, per trial of a 22-trial batch)" : ""); end
 KEY = Dict(:ltp => "FIP", :lpv => "LPV", :dmd => "DMD", :esn => "ESN", :lstm => "LSTM", :node => "NODE", :ssm => "SSM")
 r16(m) = (v = vals(m, 16, 0.0, 2); isempty(v) ? "—" : @sprintf("%.2f", median(v)))
-hgt(b) = (h = sshare(0.1, 60, :height, b); isfinite(h) ? replace(@sprintf("%.0f%%", 100h), "-" => "−") : "—")
+hgt(b) = (h = sshare(0.1, 60, :height, b); !isfinite(h) ? "—" : h < OFF_HI ? "below −60%" : replace(@sprintf("%.0f%%", 100h), "-" => "−"))
 COSTK = Dict("phase-binned" => "LPV", "time-invariant (DMD)" => "DMD", "Fourier in phase" => "FIP", "ESN" => "ESN", "SSMLearnPy" => "SSM",
              "neural ODE" => "NODE", "LSTM" => "LSTM")
 costs = Dict(COSTK[nm] => (isfinite(t) ? (t < 10 ? @sprintf("%.1f s", t) : @sprintf("%.0f s", t)) * (gpu ? " (GPU)" : "") : "—") for (nm, t, _, gpu) in COST)

@@ -89,20 +89,25 @@ plabel!(gB[1, 1], "B")
 skillpanel!(gC, 0.0, :full, "SLIP open loop, full CoM state"); plabel!(gC[1, 1], "C")
 skillpanel!(gD, 0.1, :height, "SLIP with feedback, height only"); plabel!(gD[1, 1], "D")
 # ── E: share of the attainable variance reduction ───────────────────────────
+# shares below −60% (more variance than the mean cycle by far) are drawn in a grey band at the bottom
+const OFF_LO, OFF_HI, OFF_Y = -0.9, -0.62, -0.76
+offscale(v) = v < OFF_HI ? OFF_Y : v
+offband!(ax) = hspan!(ax, OFF_LO, OFF_HI; color = (C_REF, 0.12))
 bin(v, a, b) = mean(v[round(Int, a * SPS)+1:round(Int, b * SPS)])
 share(κ, n, obs, base, a, b) = (v = rrv(κ, n, obs, base); v === nothing ? NaN : (1 - bin(v, a, b)) / (1 - bin(floorv(κ, n, obs), a, b)))
 CONDS = [(0.1, :full, "feedback,\nfull state"), (0.0, :full, "open loop,\nfull state"), (0.1, :height, "feedback,\nheight only")]
 WINS = [(0, 1, "first stride"), (1, 3, "strides 1–3")]
 axE = Axis(gE[1, 1]; ylabel = "share of the attainable\nvariance reduction", title = "E   How much of the predictable response each model forecasts",
            titlefont = :bold, xticks = (1:6, ["$(c[3])\n$(w[3])" for w in WINS for c in CONDS]), xticklabelsize = 6.5,
-           limits = (0.4, 6.6, -0.6, 1.08), yticks = ([-0.5, 0, 0.5, 1], ["−50%", "0", "50%", "100%"]))
+           limits = (0.4, 6.6, OFF_LO, 1.08), yticks = ([OFF_Y, -0.5, 0, 0.5, 1], ["below\n−60%", "−50%", "0", "50%", "100%"]))
+offband!(axE)
 hlines!(axE, 1; color = C_TRUTH, linewidth = 0.8); hlines!(axE, 0; color = C_REF, linewidth = 0.6)
 for (g, (w, c)) in enumerate([(w, c) for w in WINS for c in CONDS])
     for (k, (base, _, col, _, mk)) in enumerate(SLIPMODELS)
         x = g + (k - 3.5) * 0.12
         for (n, filled) in ((60, true), (300, false))
             v = share(c[1], n, c[2], base, w[1], w[2]); isfinite(v) || continue
-            scatter!(axE, [x], [max(v, -0.58)]; color = filled ? col : :white, strokecolor = col, strokewidth = filled ? 0 : 0.9,
+            scatter!(axE, [x], [offscale(v)]; color = filled ? col : :white, strokecolor = col, strokewidth = filled ? 0 : 0.9,
                      marker = mk, markersize = 6)
         end
     end
@@ -126,5 +131,6 @@ for (κ, obs, _) in CONDS, n in (60, 300)
     end
     println()
 end
-scorecard!("R1slip", Dict(base => replace(@sprintf("%.0f%%", 100share(0.1, 60, :full, base, 1, 3)), "-" => "−")
+pct(v) = v < OFF_HI ? "below −60%" : replace(@sprintf("%.0f%%", 100v), "-" => "−")
+scorecard!("R1slip", Dict(base => pct(share(0.1, 60, :full, base, 1, 3))
                           for (base, _, _, _, _) in SLIPMODELS if rrv(0.1, 60, :full, base) !== nothing))

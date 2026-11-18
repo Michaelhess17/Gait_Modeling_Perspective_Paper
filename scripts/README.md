@@ -5,7 +5,9 @@ Paths are resolved relative to the repository root (`cache/`, `data/`, `figures/
 
 - **Figures** (`scripts/figures/Figure_NN.jl`) only plot: they read cached results and write
   `figures/Figure_NN.{pdf,svg,png}`. Rebuild all of them with `julia --project=. scripts/make_figures.jl`
-  (or some: `scripts/make_figures.jl 05 S03`).
+  (or some: `scripts/make_figures.jl 05 S03`). Figures 5–11 also save their headline numbers
+  (`scorecard!` in `paper_style.jl` → `cache/scorecard/`); `scorecard.jl` turns them into the comparison table
+  `_scorecard.md`, included in `index.qmd` (run after a full rebuild by `make_figures.jl`, or by hand after a partial one).
 - **Analyses** (the other scripts here) simulate, fit models and write the caches. Run them before the figures that
   read them; long runs note their thread count and time in their header.
 - SLIP ground truth needs the SLIP.jl environment (`julia --project=$HOME/Documents/Julia/SLIP.jl …`) where noted.
@@ -20,7 +22,7 @@ Paths are resolved relative to the repository root (`cache/`, `data/`, `figures/
 | 2 | `figures/Figure_02.jl` | walking is disturbed again before it recovers | `cache/fig1/transient.jls`, `cache/truth` | `fig1_transient_data.jl`; `slip_truth.jl` (SLIP.jl env), `systems_truth.jl` |
 | 3 | `figures/Figure_03.jl` | data-driven Floquet multipliers of SLIP: data-hungry, noise-biased, correctable for a linear map | `cache/fig3` | `fig3_slip_maps.jl`, `slip_truth.jl` |
 | 4 | `figures/Figure_04.jl` | gait recordings are mostly the mean cycle | `cache/fig5/gait.jls` | `fig5_gait_data.jl` |
-| 5 | `figures/Figure_05.jl` | R1: forecasting the predictable short-time response of kicked SLIP, all model classes, against its floor | `cache/predictable` | `slip_predictable_truth.jl` (SLIP.jl env) → `predictable_response.jl`, `predictable_more.jl <fip\|dmdesn\|node\|lstm\|export\|ssm>` (the 30-stride free runs of Figure 7 B come from the same runs), `predictable_ssm.py` (after `export`) |
+| 5 | `figures/Figure_05.jl` | R1: forecasting the predictable short-time response of kicked SLIP, all model classes, against its floor | `cache/predictable` | `slip_predictable_truth.jl` (SLIP.jl env) → `predictable_response.jl`, `predictable_more.jl <fip\|dmdesn\|node\|lstm\|export\|ssm>` (`lstm 1,2` fits a subset of the 8 configurations per process; `lstmmerge` combines them) (the 30-stride free runs of Figure 7 B come from the same runs), `predictable_ssm.py` (after `export`) |
 | 6 | `figures/Figure_06.jl` | R1: long running recordings, whole signal against deviation over the forecast horizon | `cache/maus/learning_all_*.jls`, `cache/maus/ladder*.jls`, `cache/maus/node_*.jls`, `cache/maus/ssm.npz` (shared loader `figures/running_common.jl`) | `maus_extract.jl` (needs `data/maus_data`) → `maus_learning_all.jl cpu <η>`, `maus_learning_all.jl lstm <η>` (GPU), `maus_ladder.jl`, `maus_ladder_reference.jl`, `maus_node.jl dev <η>` / `whole` (GPU), `maus_ssm_export.jl` → `maus_ssm.py` (pixi env: `.pixi/envs/default/bin/python`) |
 | 7 | `figures/Figure_07.jl` | R2: free runs — example free runs; the outcome after 30 cycles in the benchmark, on the SLIP walker and on the running whole signal; first-cycle error; ε-tube; running deviation free runs | `cache/selfdrive`, `cache/predictable/more_*.jls`, `cache/maus/req`, `cache/maus/whole_r2.jls` | `self_driving_benchmark.jl`, `dmd_tuning.jl`, `esn_tuning.jl`, `benchmark_more.jl fip\|lstm`, `ssm_self_driving.py`, `stabilization_benchmark.jl`, `r2_tube.jl` (after the others); `predictable_more.jl` and `predictable_ssm.py` (SLIP, as Figure 5); `maus_requirements.jl`, `maus_ssm_req.py`; `maus_ssm_whole_r2.py` → `maus_whole_r2.jl` |
 | 8 | `figures/Figure_08.jl` | R3: reproducibility — forecasts and quantities across random seeds (running, benchmark) | `cache/maus/req`, `cache/selfdrive` | `maus_requirements.jl cpu\|node\|lstm`, `maus_ssm_req.py` |

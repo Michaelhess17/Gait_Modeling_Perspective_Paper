@@ -13,7 +13,9 @@
 #          state or 8 samples, its forecasts were no better than the mean cycle over the first stride and 3–9 times worse
 #          over strides 1–3: the hybrid walker's state is not determined by those variables.)
 #   LSTM   Winner et al. (2023) training (lstm_model.jl, as predictable_response.jl): 128 units, the training walk cut
-#          into 60-step trials; 2 seeds; GPU
+#          into 60-step trials; patience and epoch cap in updates as for the running data (maus_learning_all.jl: about
+#          2000 and at most 40000; 8 segments per epoch); 2 seeds; GPU. A subset of configurations can be run per process
+#          (`lstm 1,2`, → more_lstm_cfg<i>.jls), merged with mode `lstmmerge`
 #   SSM    SSMLearnPy (predictable_ssm.py, settings grid of maus_ssm.py chosen on the validation criterion); this
 #          script exports the data ("export") and scores the returned forecasts ("ssm")
 # R2 on the same walker: from the first test start of each held-out walk, every model also runs freely for 30 strides;
@@ -24,6 +26,7 @@
 #        NIX_LD_LIBRARY_PATH=/run/opengl-driver/lib julia --project=. scripts/predictable_more.jl lstm
 #        → cache/predictable/more_<mode>.jls (merged by Figure_06.jl)
 const PM_MODE = get(ARGS, 1, "fip")
+const PM_CFGS = length(ARGS) >= 2 ? parse.(Int, split(ARGS[2], ",")) : nothing     # lstm: configurations for this process
 empty!(ARGS)
 if PM_MODE == "lstm"
     using CUDA, cuDNN
@@ -194,16 +197,21 @@ if abspath(PROGRAM_FILE) == (@__FILE__)
         end
     elseif PM_MODE == "lstm"
         dev = gpu_device()
-        for i in eachindex(CONFIGS)
+        for i in something(PM_CFGS, eachindex(CONFIGS))
             κ, NTR, obs = CONFIGS[i]; P = prep(κ, NTR, obs); t0 = time()
             ltr = [P.Ytr[(q-1)*60NPH+1:q*60NPH, :] for q in 1:NTR÷60]
             models = map(1:2) do sd
-                m = fit_lstm_winner(ltr; H = 128, lookback = 299, trainseg = 8, valseg = 1, seed = sd, device = dev)
+                m = fit_lstm_winner(ltr; H = 128, lookback = 299, trainseg = 8, valseg = 1, seed = sd, device = dev,
+                                    patience = cld(2000, 8), max_epochs = cld(40000, 8))
                 ("LSTM", sd, (Yh, n, j) -> forecast_lstm(m, Yh, n))
             end
             out[i] = merge(test_models(κ, NTR, obs, P, models), (; secs = time() - t0))
             @printf("lstm config %d done, %.1f min\n", i, (time() - t0) / 60); flush(stdout)
+            PM_CFGS === nothing || serialize(joinpath(ROOT, "cache", "predictable", "more_lstm_cfg$i.jls"), out[i])
         end
+        PM_CFGS === nothing || exit()
+    elseif PM_MODE == "lstmmerge"
+        for i in eachindex(CONFIGS); out[i] = deserialize(joinpath(ROOT, "cache", "predictable", "more_lstm_cfg$i.jls")); end
     elseif PM_MODE == "dmdesn"
         Threads.@threads for i in eachindex(CONFIGS)
             κ, NTR, obs = CONFIGS[i]; P = prep(κ, NTR, obs)
@@ -252,7 +260,7 @@ if abspath(PROGRAM_FILE) == (@__FILE__)
             out[i].fates["SSM 0"] = [slipfate(replace(FL[:, :, k], NaN => Inf), P.Ytr) for k in axes(FL, 3)]
         end
     end
-    serialize(joinpath(ROOT, "cache", "predictable", "more_$(PM_MODE).jls"), out)
+    serialize(joinpath(ROOT, "cache", "predictable", "more_$(PM_MODE == "lstmmerge" ? "lstm" : PM_MODE).jls"), out)
     bin(v, a, b) = mean(v[round(Int, a * 2NPH)+1:round(Int, b * 2NPH)])
     for o in out
         @printf("κ %.1f %3d %-6s |", o.κ, o.NTR, o.obs)

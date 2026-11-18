@@ -58,7 +58,8 @@ format:
           \newunicodechar{₂}{\textsubscript{2}}
           \newunicodechar{ᵏ}{\textsuperscript{k}}
           \newunicodechar{ⁿ}{\textsuperscript{n}}
-          \newunicodechar{⅛}{\ensuremath{\tfrac{1}{8}}}
+          \newunicodechar{⅛}{\textsuperscript{1}/\textsubscript{8}}
+          \newunicodechar{ŷ}{\ensuremath{\hat{y}}}
           % pdfLaTeX: accept the figures' PDF 1.7 without warnings
           \ifdefined\pdfminorversion\pdfminorversion=7\fi
           % small captions, and figures at most 58% of the text height, so that figure and caption fit on one page
