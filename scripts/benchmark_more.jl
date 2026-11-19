@@ -1,5 +1,5 @@
 #!/usr/bin/env julia
-# The free-running benchmark (self_driving_benchmark.jl; Figures 5 and 6) for the model classes it did not include: the
+# The free-running benchmark (self_driving_benchmark.jl; Figure 5) for the model classes it did not include: the
 # phase-varying linear model (Fourier in phase) and the LSTM. Same cells (systems × regimes), the same exported data
 # (cache/selfdrive/data_*.npz: training window, held-out data, period, run length) and the same scoring (score: error over
 # the first held-out cycles, and the fate after 30 free-running cycles).

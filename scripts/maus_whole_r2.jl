@@ -1,5 +1,5 @@
 #!/usr/bin/env julia
-# R2 for the whole-signal models of the running trials (Figure 6 A; maus_ladder.jl): run freely for 30 strides from the
+# R2 for the whole-signal models of the running trials (Figure 5 B; maus_ladder.jl): run freely for 30 strides from the
 # end of the 150 training strides, with the settings maus_ladder.jl chose. Over the last 10 strides: amplitude (mean
 # channel SD relative to the training data's), period (autocorrelation of the first channel, relative to the mean
 # stride, 100 samples), and the waveform error of the last stride against the training average stride (best circular

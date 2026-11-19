@@ -1,6 +1,6 @@
 #!/usr/bin/env julia
 # Figure_S12.jl — Return-map multipliers of SLIP walking in detail (manuscript: @suppfig-slip-maps). Run: julia --project=. scripts/figures/Figure_S12.jl
-# Companion to Figure 8 E–F (the record-length and noise dependence of the estimated multiplier).
+# Companion to Figure 7 E–F (the record-length and noise dependence of the estimated multiplier).
 #
 # Kicked SLIP walks (stride-level kicks at VLO; open loop, truth 0.628 ± 0.713i, ρ = 0.95), 20 walks of 2000
 # steps; estimators and noise model in scripts/fig3_slip_maps.jl (cache/fig3/slip_maps.jls). Measurement
@@ -22,7 +22,7 @@ sel(; kappa = 0.0, method, K = 0, N = nothing, noise = nothing) =
     [x for x in rows if x.kappa == kappa && x.method == method && x.K == K &&
                         (N === nothing || x.N == N) && (noise === nothing || x.noise == noise)]
 q(v, p) = isempty(v) ? NaN : quantile(v, p)
-C_SEC = colorant"#6a4c9c"          # the section map, as in Figure 8
+C_SEC = colorant"#6a4c9c"          # the section map, as in Figure 7
 
 fig = Figure(size = (COL2, 62MM)); g = fig[1, 1] = GridLayout()
 

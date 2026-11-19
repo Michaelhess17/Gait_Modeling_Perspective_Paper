@@ -20,7 +20,7 @@ get(κ, n, obs) = only(filter(o -> o.κ == κ && o.NTR == n && o.obs == obs, R))
 MORE = [deserialize(f) for f in (joinpath(ROOT, "cache", "predictable", "more_$(m).jls") for m in ("fip", "node", "lstm", "ssm")) if isfile(f)]
 getm(κ, n, obs) = [only(filter(o -> o.κ == κ && o.NTR == n && o.obs == obs, M)) for M in MORE]
 const C_LTP = colorant"#1a4f99"
-# model, label, colour, line style (linear solid, nonlinear dashed; colours as Figures 5–6)
+# model, label, colour, line style (linear solid, nonlinear dashed; colours as Figure 5)
 SLIPMODELS = [("FIP", "Fourier in phase", C_LTP, :solid, :diamond), ("DMD", "Hankel-DMD", CAT[1], :solid, :circle),
               ("ESN", "ESN", CAT[2], :dash, :utriangle), ("LSTM", "LSTM", CAT[5], :dash, :dtriangle),
               ("NODE", "neural ODE", CAT[3], :dash, :hexagon), ("SSM", "SSMLearnPy", CAT[4], :dash, :star5)]

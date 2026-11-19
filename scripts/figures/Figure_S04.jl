@@ -15,7 +15,7 @@
 #   matches the exact multiplier (star). ESN: eigenvalues of the monodromy of its own settled cycle (closed-loop Jacobians chained
 #   over one period; phase eigenvalue removed), the leading pair per seed. Neural ODE: needs a refit to linearise.
 #   Diamond: the lattice-constrained linear fit (Fig S6).
-# The SLIP section-map bias correction (instrumental variables) is in Figure 8 E–F and Figure S12.
+# The SLIP section-map bias correction (instrumental variables) is in Figure 7 E–F and Figure S12.
 
 using Pkg; Pkg.activate(dirname(dirname(@__DIR__)); io = devnull)
 include(joinpath(@__DIR__, "..", "paper_style.jl"))

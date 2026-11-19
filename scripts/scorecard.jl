@@ -16,7 +16,7 @@ const CAPTION = "Headline numbers for each requirement, in the settings tested h
     "trials; 1, no better than the average stride); in parentheses, the share of the attainable variance reduction over " *
     "strides 1–3 of the SLIP walker with feedback, 60 training steps (@fig-running, @fig-predictable). " *
     "R2: share of free runs that keep the cycle for 30 cycles in the benchmark · on the SLIP walker · on the running whole " *
-    "signal (@fig-selfdriving A). " *
+    "signal (@fig-selfdriving B). " *
     "R3: squared difference between forecasts from different seeds, relative to the deviation's variance · benchmark cells " *
     "in which the seeds end in different fates (@fig-reproducible). " *
     "R4: remaining variance of the running deviations with 16 training strides · the SLIP share with the height alone · " *

@@ -1,5 +1,5 @@
 #!/usr/bin/env julia
-# Does the instrumental-variable correction that rescues SLIP's section map (Figure 8 E–F) help on human data? Section maps
+# Does the instrumental-variable correction that rescues SLIP's section map (Figure 7 E–F) help on human data? Section maps
 # on long running trials (Maus et al. 2015; maus_learning_all.jl's 22 trials, strides cut at the leading oscillatory
 # pair's phase, deviation from the 61-stride moving-average stride), with the estimator of fig3_slip_maps.jl:
 #   section state  the deviation at stride phase φ₀ in its top-2 principal components (PCs of the fitting strides)

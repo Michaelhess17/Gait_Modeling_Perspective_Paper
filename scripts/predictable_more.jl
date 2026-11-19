@@ -24,7 +24,7 @@
 # ESN exactly as predictable_response.jl (its cache predates the free runs) for these fates.
 # Usage: julia -t 8 --project=. scripts/predictable_more.jl fip | node | dmdesn | export | ssm
 #        NIX_LD_LIBRARY_PATH=/run/opengl-driver/lib julia --project=. scripts/predictable_more.jl lstm
-#        → cache/predictable/more_<mode>.jls (merged by Figure_06.jl)
+#        → cache/predictable/more_<mode>.jls (merged by Figure_05.jl)
 const PM_MODE = get(ARGS, 1, "fip")
 const PM_CFGS = length(ARGS) >= 2 ? parse.(Int, split(ARGS[2], ",")) : nothing     # lstm: configurations for this process
 empty!(ARGS)

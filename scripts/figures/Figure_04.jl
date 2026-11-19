@@ -11,8 +11,8 @@
 #         with its phase taken from the history and advanced at the previous stride's rate; B: stride-normalised time,
 #         the mean training stride)
 #   C     the deviation (the moving-average stride and the stride timing given) against the forecast horizon, 150 training strides
-#   (training strides and added noise: Figure_09.jl, R4)
-# Usage: julia --project=. scripts/figures/Figure_06.jl   → figures/Figure_06.{pdf,svg,png}
+#   (training strides and added noise: Figure_07.jl, R4)
+# Usage: julia --project=. scripts/figures/Figure_04.jl   → figures/Figure_04.{pdf,svg,png}
 
 include(joinpath(@__DIR__, "running_common.jl"))
 
