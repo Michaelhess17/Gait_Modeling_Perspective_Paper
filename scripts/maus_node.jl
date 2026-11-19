@@ -1,16 +1,16 @@
 #!/usr/bin/env julia
-# Neural ODEs on the long running trials (Figure 7), with the data, splits, horizons and scores of maus_learning_all.jl
+# Neural ODEs on the long running trials (Figure 4), with the data, splits, horizons and scores of maus_learning_all.jl
 # (deviation) and maus_ladder.jl (whole signal):
 #   dev     the deviation from the 61-stride moving-average stride (stride-normalised; the cycle and stride timing are
 #           given), with the stride phase as input (cos, sin), as the ESN and LSTM; every training size; noise η (fitted
 #           and validated on the noisy deviation, started from it, scored against the clean one)
-#   rt, sn  the whole signal in real time and in stride-normalised time, without a phase input (as Figure 5's neural ODE
+#   rt, sn  the whole signal in real time and in stride-normalised time, without a phase input (as the benchmark's neural ODE
 #           and the whole-signal ESN); 150 training strides
-# Model: dz/dτ = f(z, phase), τ in strides, f an MLP with 2 hidden layers of 64 tanh units (as Figure 5), its inputs
+# Model: dz/dτ = f(z, phase), τ in strides, f an MLP with 2 hidden layers of 64 tanh units (as in the benchmark), its inputs
 # scaled by the training SD of z and its outputs by the training SD of dz/dτ. State z: the channels themselves (d = 1, as
-# Figure 5) or the leading r components of the last d = 8 samples (the phase-varying linear model's state); the forecast
+# the benchmark) or the leading r components of the last d = 8 samples (the phase-varying linear model's state); the forecast
 # is the newest sample of the reconstructed window. Integrated with fourth-order Runge–Kutta at the sampling step.
-# Training: multiple shooting on 25-sample segments (¼ stride, as Figure 5) starting anywhere in the training strides,
+# Training: multiple shooting on 25-sample segments (¼ stride, as in the benchmark) starting anywhere in the training strides,
 # minibatches of BATCH segments, Adam (1e-3, decaying to 1e-4 over the update budget); early stopping on the forecast
 # skill at 6–50 samples ahead (HV) on the last fifth of the training strides, which the model is not trained on (one
 # stride at the smallest size); the state (d, r) chosen on the same validation strides. Budget (one trial: the deviation

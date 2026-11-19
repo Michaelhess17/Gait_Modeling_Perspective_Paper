@@ -16,7 +16,7 @@ const CAPTION = "Headline numbers for each requirement, in the settings tested h
     "trials; 1, no better than the average stride); in parentheses, the share of the attainable variance reduction over " *
     "strides 1–3 of the SLIP walker with feedback, 60 training steps (@fig-running, @fig-predictable). " *
     "R2: share of free runs that keep the cycle for 30 cycles in the benchmark · on the SLIP walker · on the running whole " *
-    "signal (@fig-selfdriving B). " *
+    "signal (@fig-selfdriving A). " *
     "R3: squared difference between forecasts from different seeds, relative to the deviation's variance · benchmark cells " *
     "in which the seeds end in different fates (@fig-reproducible). " *
     "R4: remaining variance of the running deviations with 16 training strides · the SLIP share with the height alone · " *
@@ -27,7 +27,7 @@ const CAPTION = "Headline numbers for each requirement, in the settings tested h
 
 load(k) = (f = joinpath(DIR, "$k.jls"); isfile(f) ? deserialize(f) : Dict{String, String}())
 cols = [(k, h, load(k)) for (k, h) in COLS]
-r1run, r1slip = load("R1run"), load("R1slip")                  # R1 from two figures: running (Figure 6), SLIP (Figure 5)
+r1run, r1slip = load("R1run"), load("R1slip")                  # R1 from two figures: running (Figure 4), SLIP (Figure 3)
 cols[1] = ("R1", COLS[1][2], Dict(m => string(get(r1run, m, "—"), " (", get(r1slip, m, "—"), ")") for (m, _) in ROWS))
 io = IOBuffer()
 println(io, "| Model | ", join([h for (_, h, _) in cols], " | "), " |")

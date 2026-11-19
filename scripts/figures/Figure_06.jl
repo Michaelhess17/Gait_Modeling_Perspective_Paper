@@ -1,74 +1,164 @@
 #!/usr/bin/env julia
-# Figure_06.jl — Modelling the deviation from the cycle on long running recordings (manuscript: @fig-running). Run: julia --project=. scripts/figures/Figure_06.jl
-# What does modelling the whole system cost, and how many strides, and how clean, does each model class need to
-# forecast the deviations of human running? (maus_ladder.jl, maus_learning_all.jl, maus_node.jl, maus_ssm.py; 22 long
-# treadmill running trials, Maus et al. 2015). Deviation: relative remaining variance, MSE(forecast) / MSE(average stride)
-# = 1 − R² of the deviation from the 61-stride moving-average stride (1: no better than the average stride, 0: exact);
-# medians and interquartile ranges over trials. Models: linear (solid; DMD's blue family) and nonlinear (dashed; ESN, LSTM, neural
-# ODE, SSMLearnPy in the colours of the other figures).
-#   A, B  prediction horizons of the whole signal, 150 training strides, each scored in its own time frame: NRMSE of the
-#         joint angles (RMSE / SD of the signal), against a mean-cycle template (A: real time, the mean training stride
-#         with its phase taken from the history and advanced at the previous stride's rate; B: stride-normalised time,
-#         the mean training stride)
-#   C     the deviation (the moving-average stride and the stride timing given) against the forecast horizon, 150 training strides
-#   (training strides and added noise: Figure_09.jl, R4)
-# Usage: julia --project=. scripts/figures/Figure_06.jl   → figures/Figure_06.{pdf,svg,png}
+# Figure_06.jl — R2: who keeps the cycle when run on its own (manuscript: @fig-selfdriving).
+# Run: julia --project=. scripts/figures/Figure_06.jl
+# (A) Outcome after 30 free-running cycles in three settings, every run pooled (classes in r2_common.jl):
+#       benchmark  13 cells: 4 simulated systems × 2 regimes (30 training cycles without noise; 12 with noise) and 5
+#                  human gait recordings (self_driving_benchmark.jl; Fourier in phase and LSTM from benchmark_more.jl)
+#       SLIP       the walker of Figure 3: 8 conditions × 10 held-out walks, 30 strides from the first test start of
+#                  each walk (predictable_more.jl; predictable_ssm.py)
+#       running    the whole signal of Figure 4: 22 trials, 150 training strides, real and stride-normalised time
+#                  (maus_whole_r2.jl); the neural ODE and LSTM were not run freely on the whole running signal
+# (B) Benchmark: error over the first free-running cycle, per system, against the phase-aligned mean-cycle template.
+# (C) Benchmark: time each free run stays within ε of the true cycle (r2_tube.jl).
+# (D) Running: free runs of the deviation models (maus_requirements.jl), size of the deviation relative to its SD.
+include(joinpath(@__DIR__, "r2_common.jl"))
 
-include(joinpath(@__DIR__, "running_common.jl"))
+fig = Figure(size = (COL2, 118MM))
+gB = fig[1, 1] = GridLayout()
+gC = fig[2, 1] = GridLayout()
 
-LAD = deserialize(joinpath(ROOT, "cache", "maus", "ladder.jls"))
-REF = deserialize(joinpath(ROOT, "cache", "maus", "ladder_reference.jls"))
-NODEW = (f = joinpath(ROOT, "cache", "maus", "node_whole.jls"); isfile(f) ? deserialize(f).out : nothing)
-"Skill of the whole-signal model m on trial i (the same 22 trials, in the same order, in every cache)."
-function wskill(rung, m, i, h)
-    m == :template && return REF.R[i][rung].ref_causal[h]
-    m == :node && return NODEW[rung].rows[i].r2[h]
-    m == :ssm && return SSM["whole"][i, rung == :rt ? 1 : 2, h]
-    LAD.R[i][(rung, m, 150)].r2[h]
-end
-"NRMSE of the predicted joint angles (RMSE / SD of the signal) over trials, in representation rung (:rt or :sn)."
-nrmse(rung, m, h) = filter(isfinite, [sqrt(max((1 - wskill(rung, m, i, h)) * REF.R[i][rung].devfrac[h], 0))
-                                      for i in eachindex(LAD.R) if LAD.R[i] !== nothing])
-WHOLE = [(:ltp, C_LTP, :diamond, :solid), (:dmd, CAT[1], :circle, :solid), (:esn, CAT[2], :utriangle, :dash)]
-NODEW === nothing || push!(WHOLE, (:node, CAT[3], :hexagon, :dash))
-SSM === nothing || push!(WHOLE, (:ssm, CAT[4], :star5, :dash))
-fig = Figure(size = (COL2, 70MM))
-# A, B: prediction horizons of the whole signal, each scored in its own time frame against its own mean-cycle template
-for (j, (rung, ttl, tl)) in enumerate(((:rt, "whole signal, real time", "mean stride,\nphase from the history"),
-                                       (:sn, "whole signal, stride time", "mean stride")))
-    ax = Axis(fig[1, j]; xlabel = "forecast horizon (stride)", ylabel = j == 1 ? "error of the joint angles (NRMSE)" : "",
-              title = ttl, xticks = ([0.25, 0.5, 0.75, 1.0], ["¼", "½", "¾", "1"]))
-    for (m, col, mk, ls) in WHOLE
-        band!(ax, HZ ./ 100, [q(nrmse(rung, m, h), 0.25) for h in eachindex(HZ)], [q(nrmse(rung, m, h), 0.75) for h in eachindex(HZ)]; color = (col, 0.12))
-        scatterlines!(ax, HZ ./ 100, [median(nrmse(rung, m, h)) for h in eachindex(HZ)]; color = col, marker = mk, markersize = 5, linestyle = ls)
+# ── (A) outcome after 30 free-running cycles, three settings ─────────────────
+PRED = joinpath(ROOTF, "cache", "predictable")
+slipf = Dict{String, Vector{String}}()                           # SLIP walker: model => fates (all conditions and seeds)
+for tag in ("fip", "dmdesn", "lstm", "node", "ssm")
+    f = joinpath(PRED, "more_$(tag).jls"); isfile(f) || continue
+    for o in deserialize(f)
+        haskey(o, :fates) || continue
+        for (k, v) in o.fates; append!(get!(slipf, String(split(k)[1]), String[]), v); end
     end
-    lines!(ax, HZ ./ 100, [median(nrmse(rung, :template, h)) for h in eachindex(HZ)]; color = C_TRUTH, linestyle = :dash, linewidth = 1.2)
-    text!(ax, 1.0, 0.24; text = "dashed: " * tl, fontsize = 5.5, align = (:right, :top))
-    xlims!(ax, 0, 1.05); ylims!(ax, 0, 0.25)
-    panel_label!(fig[1, j], ("A", "B")[j])
 end
-# C: the deviation, against the horizon
-axC = Axis(fig[1, 3]; xlabel = "forecast horizon (stride)", ylabel = "remaining variance (rel. to average stride)", title = "deviation (cycle and timing given)",
-           xticks = ([0.25, 0.5, 0.75, 1.0], ["¼", "½", "¾", "1"]))
-refline!(axC, 1)
-for (m, nm, col, mk, ls) in MODELS
-    hs = [h for h in eachindex(HZ) if !isempty(vals(m, 150, 0.0, h))]
-    isempty(hs) && continue
-    band!(axC, HZ[hs] ./ 100, [q(vals(m, 150, 0.0, h), 0.25) for h in hs], [q(vals(m, 150, 0.0, h), 0.75) for h in hs]; color = (col, 0.12))
-    scatterlines!(axC, HZ[hs] ./ 100, [median(vals(m, 150, 0.0, h)) for h in hs]; color = col, marker = mk, markersize = 5, linestyle = ls, label = nm)
+runf = Dict{String, Vector{String}}()                            # running, whole signal: model => fates (both time frames)
+WR = joinpath(ROOTF, "cache", "maus", "whole_r2.jls")
+if isfile(WR)
+    MAP = Dict(:ltp => "FIP", :dmd => "DMD", :esn => "ESN", :ssm => "SSM", :lstm => "LSTM", :node => "NODE")
+    for r in deserialize(WR), (k, v) in (r === nothing ? () : pairs(r))
+        append!(get!(runf, MAP[k[2]], String[]), [v.fate])
+    end
 end
-xlims!(axC, 0, 1.05); ylims!(axC, 0, 1.3)
-panel_label!(fig[1, 3], "C")
-leg_el = vcat([[LineElement(color = col, linestyle = ls), MarkerElement(color = col, marker = mk, markersize = 6)] for (_, _, col, mk, ls) in MODELS],
-              [[LineElement(color = C_TRUTH, linestyle = :dash)]])
-leg_lab = vcat([m in PHASE_INPUT ? nm * " (phase input with the deviation)" : nm for (m, nm, _, _, _) in MODELS], ["mean-cycle template (A, B)"])
-Legend(fig[2, 1:3], leg_el, leg_lab; framevisible = false, labelsize = 6.5, orientation = :horizontal, nbanks = 3, colgap = 10, rowgap = 0)
-rowgap!(fig.layout, 6)
+ROWS_B = vcat([(m, nm) for (m, nm, _, _, _) in MODELS[1:2]], [("DMD0", "Hankel-DMD, unconstrained")],
+              [(m, nm) for (m, nm, _, _, _) in MODELS[3:end]])
+SETS = [("benchmark (13 cells)", m -> [x.fate for x in allrows if x.model == m]),
+        ("SLIP walker (Figure 3)", m -> get(slipf, m, String[])),
+        ("running, whole signal (Figure 4)", m -> get(runf, m, String[]))]
+for (s, (stitle, getf)) in enumerate(SETS)
+    ax = Axis(gB[1, s]; title = stitle, xlabel = "share of free runs", yreversed = true, limits = (0, 1.3, 0.4, length(ROWS_B) + 0.6),
+              yticks = (1:length(ROWS_B), [nm for (_, nm) in ROWS_B]), yticklabelsvisible = s == 1, xticks = [0, 0.5, 1],
+              yticklabelsize = 6.5)
+    hidespines!(ax, :t, :r)
+    for (r, (m, _)) in enumerate(ROWS_B)
+        v = getf(m)
+        if isempty(v)
+            text!(ax, 0.02, r; text = "not run", fontsize = 6, color = C_REF, align = (:left, :center)); continue
+        end
+        left = 0.0
+        for f in FATES
+            sh = count(==(f), v) / length(v); sh > 0 || continue
+            barplot!(ax, [r], [sh]; offset = left, direction = :x, color = FATE_COL[f], width = 0.7, gap = 0, strokecolor = :white, strokewidth = 0.8)
+            sh > 0.12 && text!(ax, left + sh / 2, r; text = "$(round(Int, 100sh))%", align = (:center, :center), fontsize = 5.5, color = :white)
+            left += sh
+        end
+        text!(ax, 1.02, r; text = "n = $(length(v))", align = (:left, :center), fontsize = 5.5, color = C_REF)
+    end
+end
+Legend(gB[2, 1:3], [PolyElement(color = FATE_COL[f]) for f in FATES], ["ok", "decays (right rhythm)", "wrong rhythm", "collapse", "blow-up"];
+       orientation = :horizontal, tellwidth = false, framevisible = false, labelsize = 6.5)
+Label(gB[0, 1:3], "Outcome after 30 free-running cycles"; fontsize = 8, halign = :left)
+colgap!(gB, 10); rowgap!(gB, 3)
+Label(gB[1, 1, TopLeft()], "A"; fontsize = 10, font = :bold, padding = (0, 6, 2, 0))
+
+# ── (B) first-cycle error per benchmark system ───────────────────────────────
+sysorder = ["fhn", "cfhn", "vdp2", "slip", "gait91", "gait243", "gait231", "gait63", "gait267"]
+axC = Axis(gC[1, 1]; title = "First free cycle: error", ylabel = "error (cycle SD units)", yscale = log10,
+           xticks = (1:length(sysorder), ["FHN", "cFHN", "VdP", "SLIP", "gait 1", "2", "3", "4", "5"]), xticklabelrotation = π / 3,
+           xticklabelsize = 6.5, yticks = ([0.01, 0.1, 1, 10], ["0.01", "0.1", "1", "10"]))
+for (k, s) in enumerate(sysorder)
+    tpl = [x.e1 for x in allrows if x.sys == s && x.model == "template"]
+    isempty(tpl) || lines!(axC, [k - 0.45, k + 0.45], fill(median(tpl), 2); color = C_TRUTH, linewidth = 1.0)
+    for (q, (m, _, col, mk, _)) in enumerate(MODELS)
+        v = [x.e1 for x in allrows if x.sys == s && x.model == m]
+        isempty(v) && continue
+        scatter!(axC, fill(k - 0.375 + 0.15(q - 1), length(v)), clamp.(replace(v, NaN => 10.0), 1e-2, 10.0); color = (col, 0.8),
+                 marker = mk, markersize = 3.5)
+    end
+end
+ylims!(axC, 7e-3, 14)
+Label(gC[1, 1, TopLeft()], "B"; fontsize = 10, font = :bold, padding = (0, 6, 2, 0))
+
+# ── (C) time within ε of the true cycle ──────────────────────────────────────
+ftube = joinpath(DIR, "r2_tube.jls")
+if isfile(ftube)
+    tube = deserialize(ftube); EPS_D = 0.5; tg = 0:0.1:8
+    surv(recs) = [count(r -> r.exits[EPS_D] > t, recs) / length(recs) for t in tg]
+    axD = Axis(gC[1, 2]; title = "Time within ε of the true cycle", xlabel = "free-running cycles",
+               ylabel = "share of runs within ε", limits = (0, 8, 0, 1.03))
+    for (m, col, ls) in vcat([(m, col, :solid) for (m, _, col, _, _) in MODELS], [("DMD0", CAT[1], :dot)])
+        recs = [r for o in tube for r in o.recs if r.model == m]
+        isempty(recs) && continue
+        lines!(axD, collect(tg), surv(recs); color = col, linestyle = ls, linewidth = 1.3)
+    end
+    text!(axD, 0.2, 0.04; text = "ε = $(EPS_D) cycle SD; held-out data stay\nwithin $(round(maximum(o.data_max for o in tube), digits = 2)); dotted: DMD unconstrained",
+          fontsize = 5.5, color = C_REF, align = (:left, :bottom))
+    Label(gC[1, 2, TopLeft()], "C"; fontsize = 10, font = :bold, padding = (0, 6, 2, 0))
+end
+
+# ── (D) running: free runs of the deviation models ───────────────────────────
+RQ = joinpath(ROOTF, "cache", "maus", "req")
+function runlong(m)
+    if m == "SSM"
+        fs = [joinpath(RQ, @sprintf("ssm_trial_%02d.npz", i)) for i in 1:22]
+        return all(isfile, fs) ? reduce(vcat, [npzread(f)["long"] for f in fs]) : nothing
+    end
+    key = Dict("FIP" => "ltp", "DMD" => "dmd", "ESN" => "esn", "LSTM" => "lstm", "NODE" => "node")[m]
+    f = joinpath(RQ, m in ("ESN", "LSTM", "NODE") ? "$(key)_seed1.jls" : "$(key).jls"); isfile(f) || return nothing
+    R = deserialize(f); (length(R) == 22 && all(!isnothing, R)) || return nothing
+    reduce(vcat, [Matrix(Float64.(r.long)) for r in R])
+end
+axE = Axis(gC[1, 3]; title = "Running: deviation models", xlabel = "free-running strides", yscale = log10,
+           ylabel = "deviation size (× its SD)", limits = (0.5, 30.5, 3e-3, 30), yticks = ([0.01, 0.1, 1, 10], ["0.01", "0.1", "1", "10"]))
+hlines!(axE, 1; color = C_REF, linewidth = 0.6, linestyle = :dash)
+for (m, _, col, _, ls) in MODELS
+    Lm = runlong(m); Lm === nothing && continue
+    Lm = clamp.(replace(Lm, Inf => 1e3, NaN => 1e3), 1e-6, 1e3)
+    band!(axE, 1:30, [quantile(c, 0.25) for c in eachcol(Lm)], [quantile(c, 0.75) for c in eachcol(Lm)]; color = (col, 0.12))
+    lines!(axE, 1:30, [median(c) for c in eachcol(Lm)]; color = col, linestyle = ls, linewidth = 1.3)
+end
+text!(axE, 30, 1.1; text = "the deviation's own size", fontsize = 5.5, color = C_REF, align = (:right, :bottom))
+Label(gC[1, 3, TopLeft()], "D"; fontsize = 10, font = :bold, padding = (0, 6, 2, 0))
+Legend(gC[2, 1:3], [[LineElement(color = col, linestyle = ls), MarkerElement(color = col, marker = mk, markersize = 5)] for (_, _, col, mk, ls) in MODELS],
+       [nm for (_, nm, _, _, _) in MODELS]; orientation = :horizontal, tellwidth = false, framevisible = false, labelsize = 6.5, colgap = 10)
+colgap!(gC, 16); rowgap!(gC, 2)
+
+rowsize!(fig.layout, 1, Relative(0.45)); rowgap!(fig.layout, 10)
 save_paper(fig, "Figure_06")
 
-for (m, nm, _, _, _) in MODELS, n in (16, 32, 150)
-    v = vals(m, n, 0.0, 2); isempty(v) && continue
-    @printf("%-8s %3d strides: remaining variance 1/8 stride %.2f [%.2f–%.2f], 1/4 %.2f (%d trials)\n", m, n, median(v), q(v, 0.25), q(v, 0.75), median(vals(m, n, 0.0, 4)), length(v))
+# ── numbers for the text ─────────────────────────────────────────────────────
+println("\nOutcome after 30 free-running cycles (counts):")
+for (stitle, getf) in SETS
+    println("  ", stitle)
+    for (m, nm) in vcat(ROWS_B, [("template", "template")])
+        v = getf(m); isempty(v) && continue
+        @printf("    %-26s n=%3d  %s\n", nm, length(v), join(["$(f) $(count(==(f), v))" for f in FATES if count(==(f), v) > 0], ", "))
+    end
 end
-KEY = Dict(:ltp => "FIP", :lpv => "LPV", :dmd => "DMD", :esn => "ESN", :lstm => "LSTM", :node => "NODE", :ssm => "SSM")
-scorecard!("R1run", Dict(KEY[m] => @sprintf("%.2f", median(vals(m, 150, 0.0, 2))) for (m, _, _, _, _) in MODELS if haskey(KEY, m) && !isempty(vals(m, 150, 0.0, 2))))
+fin(v) = filter(isfinite, v)
+println("\nBenchmark, first-cycle relative remaining variance (model error / template error)², median over seeds, range over cells:")
+for reg in ("long", "realistic"), (m, nm, _, _, _) in MODELS
+    r = Float64[]
+    for s in unique(x.sys for x in allrows if x.reg == reg)
+        t = fin([x.e1 for x in allrows if x.sys == s && x.reg == reg && x.model == "template"])
+        v = fin([x.e1 for x in allrows if x.sys == s && x.reg == reg && x.model == m])
+        (isempty(t) || isempty(v)) || push!(r, (median(v) / median(t))^2)
+    end
+    isempty(r) || @printf("  %-9s %-17s %.3g to %.3g (median %.3g, %d cells)\n", reg, nm, extrema(r)..., median(r), length(r))
+end
+if isfile(ftube)
+    println("\nBenchmark, share of runs within ε = 0.5 for all 8 cycles:")
+    for (m, nm) in ROWS_B
+        recs = [r for o in tube for r in o.recs if r.model == m]
+        isempty(recs) || @printf("  %-26s %3.0f%% (n = %d)\n", nm, 100 * count(r -> isinf(r.exits[0.5]), recs) / length(recs), length(recs))
+    end
+end
+pct(v) = isempty(v) ? "—" : @sprintf("%.0f%%", 100 * count(==("ok"), v) / length(v))
+sc = Dict(m => join([pct(getf(m)) for (_, getf) in SETS], " · ") for (m, _, _, _, _) in MODELS)
+sc["LPV"] = "cannot run freely"
+scorecard!("R2", sc)

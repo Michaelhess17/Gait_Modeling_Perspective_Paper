@@ -1,9 +1,9 @@
 #!/usr/bin/env julia
-# R2 for the whole-signal models of the running trials (Figure 7A–B; maus_ladder.jl): run freely for 30 strides from the
+# R2 for the whole-signal models of the running trials (Figure 6 A; maus_ladder.jl): run freely for 30 strides from the
 # end of the 150 training strides, with the settings maus_ladder.jl chose. Over the last 10 strides: amplitude (mean
 # channel SD relative to the training data's), period (autocorrelation of the first channel, relative to the mean
 # stride, 100 samples), and the waveform error of the last stride against the training average stride (best circular
-# shift; RMS over channels relative to the signal's SD). Fates as Figure 5: ok (amplitude 0.75–1.33, period within
+# shift; RMS over channels relative to the signal's SD). Fates as in the benchmark (self_driving_benchmark.jl): ok (amplitude 0.75–1.33, period within
 # 10%), decays (0.25–0.75), collapse (< 0.25), blow-up (non-finite or > 4), wrong (period off or amplitude > 1.33).
 # Phase-varying linear (affine), real time: the phase advances at the last training stride's rate during the free run.
 # SSMLearnPy: maus_ssm_whole_r2.py runs it (its settings from maus_ssm.py); classified here the same way.

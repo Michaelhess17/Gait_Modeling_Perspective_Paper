@@ -6,7 +6,7 @@
 #                      previous stride's rate; sn: one sample per sample), scored the same way
 #   raw-signal R²      1 − Σ‖ŷ − y‖² / Σ‖y − ȳ‖² of whole-signal Hankel-DMD (window 50, rank 64), and the deviation's
 #                      share of the signal's variance (this DMD keeps opfit's default ridge 1e-4·S₁², which removes most of
-#                      the deviation's dynamics; the ladder's DMD chooses its ridge and rank — Figure 7 reads only
+#                      the deviation's dynamics; the ladder's DMD chooses its ridge and rank — Figure 4 reads only
 #                      ref_causal and devfrac from here)
 # 150 training strides; horizons HZ. Usage: julia -t 12 --project=. scripts/maus_ladder_reference.jl
 #   → cache/maus/ladder_reference.jls

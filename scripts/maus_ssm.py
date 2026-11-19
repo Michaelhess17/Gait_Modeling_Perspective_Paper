@@ -1,17 +1,17 @@
 #!/usr/bin/env python
-"""SSMLearnPy on the long running trials (Figure 7), with the splits, horizons and scores of maus_learning_all.jl
+"""SSMLearnPy on the long running trials (Figure 4), with the splits, horizons and scores of maus_learning_all.jl
 (deviation) and maus_ladder.jl (whole signal). Data from maus_ssm_export.jl (cache/maus/ssm_input/trial_NN.npz).
 
-Model: Figure 5's SSMLearnPy configuration (ssm_self_driving.py): delay embedding of the training-mean-centred
+Model: the benchmark's SSMLearnPy configuration (ssm_self_driving.py): delay embedding of the training-mean-centred
 channels, linear chart (leading singular vectors), cubic parametrisation of the manifold, polynomial reduced map
 z_{k+1} = R(z_k), ridge 1e-4 with feature scaling, no intercept. Forecast from the delay vector ending at the start:
 encode, iterate the map, decode, read the newest block. Settings chosen on an inner split of the training strides
 (fit on the first half, forecast skill at 6-50 samples ahead on the second; maus_learning.jl), then refitted:
-    delay window lags + 1 with lags in {6, 12, 25, 50} (Figure 5: a quarter cycle, 25), and 100 on the whole signal
+    delay window lags + 1 with lags in {6, 12, 25, 50} (benchmark: a quarter cycle, 25), and 100 on the whole signal
     (manifold dimension, map degree) in {(2, 3), (2, 5), (2, 7), (2, 9), (4, 3), (4, 5), (6, 3), (8, 2), (12, 2), (16, 2)}
-    (Figure 5: dimension 2, degree 5 or 9; the higher dimensions because the deviation is not low-dimensional: on one
+    (benchmark: dimension 2, degree 5 or 9; the higher dimensions because the deviation is not low-dimensional: on one
     trial a 2-D manifold reconstructs 12-41% of the deviation's current sample, and maps of degree 5 or more diverge)
-    ridge in {1e-4, 100} on the scaled features (Figure 5: 1e-4; the stronger ridge keeps the quadratic maps on
+    ridge in {1e-4, 100} on the scaled features (benchmark: 1e-4; the stronger ridge keeps the quadratic maps on
     8-16 dimensions from diverging over half a stride)
 Representations:
     dev     deviation from the 61-stride moving-average stride (cycle and stride timing given), every training size;

@@ -1,4 +1,4 @@
-# running_common.jl — data shared by Figure_06.jl (R1, running) and Figure_09.jl (R4): the running-deviation results of
+# running_common.jl — data shared by Figure_04.jl (R1, running) and Figure_08.jl (R4): the running-deviation results of
 # maus_learning_all.jl (cpu, lstm), maus_node.jl and maus_ssm.py, and the model list (colours as in the other figures).
 include(joinpath(@__DIR__, "..", "paper_style.jl"))
 using Serialization, Statistics, Printf, NPZ
